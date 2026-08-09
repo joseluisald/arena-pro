@@ -1,0 +1,6 @@
+{
+  "name": "Torneio Society Hub",
+  "description": "Sistema completo de gestão de torneio interno de futebol society com sorteio por potes, súmula digital em tempo real, classificação e artilharia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

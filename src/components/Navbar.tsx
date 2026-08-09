@@ -1,0 +1,285 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { Categoria } from '../types';
+import { 
+  Trophy, 
+  Users, 
+  Calendar, 
+  PlayCircle, 
+  BarChart3, 
+  Settings, 
+  Database, 
+  Shuffle, 
+  Download, 
+  Upload, 
+  RotateCcw,
+  Menu,
+  X,
+  ChevronRight,
+  Layers
+} from 'lucide-react';
+import { exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
+
+interface NavbarProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  categorias: Categoria[];
+  selectedCategoriaId: number;
+  setSelectedCategoriaId: (id: number) => void;
+  onRefreshData: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  setActiveTab,
+  categorias,
+  selectedCategoriaId,
+  setSelectedCategoriaId,
+  onRefreshData,
+}) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    const blob = await exportSqliteFile();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `torneio_society_backup_${new Date().toISOString().slice(0, 10)}.sqlite`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importSqliteFile(file).then(() => {
+        onRefreshData();
+        alert('Banco de dados SQLite importado com sucesso!');
+      });
+    }
+  };
+
+  const handleReset = async () => {
+    if (confirm('Deseja realmente restaurar os dados originais do torneio? Todas as alterações serão sobrescritas.')) {
+      await resetDatabaseToSeed();
+      onRefreshData();
+    }
+  };
+
+  const navItems = [
+    { id: 'dashboard', label: 'Painel Geral', icon: BarChart3, badge: null },
+    { id: 'sumula', label: 'Súmula Digital', icon: PlayCircle, badge: 'Ao Vivo' },
+    { id: 'sorteio', label: 'Draft / Sorteio', icon: Shuffle, badge: null },
+    { id: 'jogos', label: 'Jogos & Mata-Mata', icon: Calendar, badge: null },
+    { id: 'classificacao', label: 'Tabela & Artilharia', icon: Trophy, badge: null },
+    { id: 'times', label: 'Times & Jogadores', icon: Users, badge: null },
+    { id: 'regras', label: 'Regras da Categoria', icon: Settings, badge: null },
+    { id: 'sql-lab', label: 'SQLite & Schema Lab', icon: Database, badge: 'Dev' },
+  ];
+
+  const handleSelectTab = (id: string) => {
+    setActiveTab(id);
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <>
+      {/* Mobile Top Header */}
+      <header className="lg:hidden bg-[#16191F] border-b border-[#2D3139] px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-xl">
+        <div className="flex items-center space-x-3">
+          <div className="w-9 h-9 bg-[#00E676] rounded-xl flex items-center justify-center shadow-[0_0_12px_rgba(0,230,118,0.4)]">
+            <Trophy className="w-5 h-5 text-black" />
+          </div>
+          <div>
+            <h1 className="text-xs font-black tracking-wider uppercase text-white">Arena Pro</h1>
+            <p className="text-[9px] text-[#00E676] font-mono tracking-widest uppercase">Society Manager</p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <select
+            value={selectedCategoriaId}
+            onChange={(e) => setSelectedCategoriaId(Number(e.target.value))}
+            className="bg-[#0F1115] text-[#00E676] text-xs font-mono font-bold rounded-lg px-2.5 py-1.5 focus:outline-none border border-[#2D3139] uppercase"
+          >
+            {categorias.map((c) => (
+              <option key={c.id} value={c.id} className="bg-[#16191F] text-white">
+                {c.nome}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 bg-[#0F1115] text-white rounded-lg border border-[#2D3139] hover:border-[#00E676] transition-colors"
+            aria-label="Alternar Menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Vertical Sidebar Layout (Desktop Fixed / Mobile Slide-over) */}
+      <aside
+        className={`
+          fixed lg:sticky top-0 left-0 z-40 lg:z-30 h-screen lg:h-screen w-72 bg-[#16191F] border-r border-[#2D3139]
+          flex flex-col justify-between p-5 transition-transform duration-300 ease-in-out shrink-0 overflow-y-auto scrollbar-none shadow-2xl
+          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        {/* Top Section: Branding & Category Picker */}
+        <div className="space-y-6">
+          {/* Brand Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-[#00E676] rounded-xl flex items-center justify-center shadow-[0_0_18px_rgba(0,230,118,0.4)]">
+                <Trophy className="w-5 h-5 text-black" />
+              </div>
+              <div>
+                <h1 className="text-sm font-black tracking-tight uppercase text-white">Arena Pro</h1>
+                <p className="text-[10px] text-[#00E676] font-mono tracking-widest uppercase font-bold">Manager v2.4</p>
+              </div>
+            </div>
+
+            {/* Mobile close button */}
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="lg:hidden p-1.5 text-[#8E9299] hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Status Badge */}
+          <div className="flex items-center justify-between bg-[#0F1115] px-3 py-2 rounded-xl border border-[#2D3139]">
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-[#00E676] animate-pulse"></span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white">SQLite Sync Engine</span>
+            </div>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30 font-bold">
+              OFFLINE OK
+            </span>
+          </div>
+
+          {/* Category Selector Card */}
+          <div className="space-y-1.5 bg-[#0F1115] p-3 rounded-2xl border border-[#2D3139]">
+            <label className="text-[10px] font-mono uppercase font-bold text-[#8E9299] tracking-wider flex items-center space-x-1">
+              <Layers className="w-3 h-3 text-[#00E676]" />
+              <span>Categoria Ativa</span>
+            </label>
+            <select
+              value={selectedCategoriaId}
+              onChange={(e) => setSelectedCategoriaId(Number(e.target.value))}
+              className="w-full bg-[#16191F] text-[#00E676] text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#00E676] border border-[#2D3139] uppercase tracking-wide cursor-pointer"
+            >
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id} className="bg-[#16191F] text-white">
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="space-y-1">
+            <p className="px-2 pb-2 text-[10px] font-mono font-bold uppercase tracking-widest text-[#8E9299]">
+              Menu do Torneio
+            </p>
+            <nav className="space-y-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelectTab(item.id)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all group ${
+                      isActive
+                        ? 'bg-[#00E676] text-black shadow-[0_0_15px_rgba(0,230,118,0.35)]'
+                        : 'text-[#8E9299] hover:text-white hover:bg-[#0F1115] border border-transparent hover:border-[#2D3139]'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Icon className={`w-4 h-4 transition-transform group-hover:scale-110 ${isActive ? 'text-black' : 'text-[#8E9299] group-hover:text-[#00E676]'}`} />
+                      <span>{item.label}</span>
+                    </div>
+
+                    {item.badge ? (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                        isActive
+                          ? 'bg-black text-[#00E676]'
+                          : 'bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/30'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    ) : (
+                      <ChevronRight className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'text-black opacity-100' : 'text-[#8E9299]'}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+
+        {/* Bottom Section: Database Management Actions */}
+        <div className="pt-4 border-t border-[#2D3139] space-y-3 mt-6">
+          <p className="px-1 text-[10px] font-mono font-bold uppercase tracking-widest text-[#8E9299]">
+            Ferramentas SQLite
+          </p>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <button
+              onClick={handleExport}
+              title="Exportar backup .sqlite"
+              className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-xl bg-[#0F1115] hover:bg-[#1A1E26] text-[#8E9299] hover:text-white border border-[#2D3139] hover:border-[#00E676]/40 transition-all font-mono text-[11px] font-bold"
+            >
+              <Download className="w-3.5 h-3.5 text-[#00E676]" />
+              <span>Exportar</span>
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Importar backup .sqlite"
+              className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-xl bg-[#0F1115] hover:bg-[#1A1E26] text-[#8E9299] hover:text-white border border-[#2D3139] hover:border-[#00E676]/40 transition-all font-mono text-[11px] font-bold"
+            >
+              <Upload className="w-3.5 h-3.5 text-[#00E676]" />
+              <span>Restaurar</span>
+            </button>
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImport}
+            accept=".sqlite,.db"
+            className="hidden"
+          />
+
+          <button
+            onClick={handleReset}
+            title="Restaurar banco com dados padrão"
+            className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] border border-[#FF1744]/30 transition-all font-mono text-[11px] font-extrabold uppercase tracking-wider"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Resetar Banco</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Overlay Backdrop for Mobile Menu */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-black/70 backdrop-blur-sm lg:hidden"
+        />
+      )}
+    </>
+  );
+};
+
