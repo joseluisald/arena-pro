@@ -326,6 +326,41 @@ export async function createUsuario(nome: string, email: string, senha: string, 
 }
 
 /**
+ * Category management helpers
+ */
+export async function createCategoria(nome: string): Promise<number> {
+  const cleanNome = nome.trim();
+  if (!cleanNome) throw new Error('Nome da categoria não pode ser vazio');
+
+  const res = await runQuery('INSERT INTO categorias (nome) VALUES (?);', [cleanNome]);
+  const newCatId = res.lastInsertRowid;
+
+  // Insert default rules and settings for the new category
+  await runQuery(
+    `INSERT INTO configuracoes_categoria 
+     (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    [newCatId, 100, 50, 2, 3, 1, 1, 7, 5]
+  );
+
+  persistDatabase();
+  return newCatId;
+}
+
+export async function updateCategoria(id: number, nome: string): Promise<void> {
+  const cleanNome = nome.trim();
+  if (!cleanNome) throw new Error('Nome da categoria não pode ser vazio');
+  await runQuery('UPDATE categorias SET nome = ? WHERE id = ?;', [cleanNome, id]);
+  persistDatabase();
+}
+
+export async function deleteCategoria(id: number): Promise<void> {
+  // SQLite handles CASCADE deletion for teams/players/matches if foreign keys are ON
+  await runQuery('DELETE FROM categorias WHERE id = ?;', [id]);
+  persistDatabase();
+}
+
+/**
  * Execute a SQL query and return array of mapped objects
  */
 export async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {

@@ -26,10 +26,12 @@ import {
   LogOut,
   ShieldCheck,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Plus
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
+import { CategoryManagerModal } from './CategoryManagerModal';
 
 interface NavbarProps {
   activeTab: string;
@@ -56,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -169,6 +172,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             ))}
           </select>
 
+          {isAdminAuthenticated && (
+            <button
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="p-1.5 bg-[#FF6B1A]/10 text-[#FF6B1A] hover:bg-[#FF6B1A] hover:text-black border border-[#FF6B1A]/30 rounded-lg transition-all"
+              title="Gerenciar / Cadastrar Categoria"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 bg-[#0F1115] text-white rounded-lg border border-[#262933] hover:border-[#FF6B1A] transition-colors"
@@ -264,10 +277,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Category Selector Card */}
           <div className="space-y-1.5 bg-[#0F1115] p-3 rounded-2xl border border-[#262933]">
-            <label className="text-[10px] font-mono uppercase font-bold text-[#8E9299] tracking-wider flex items-center space-x-1">
-              <Layers className="w-3 h-3 text-[#FF6B1A]" />
-              <span>Categoria Ativa</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono uppercase font-bold text-[#8E9299] tracking-wider flex items-center space-x-1">
+                <Layers className="w-3 h-3 text-[#FF6B1A]" />
+                <span>Categoria Ativa</span>
+              </label>
+              {isAdminAuthenticated && (
+                <button
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="text-[10px] font-mono font-bold text-[#FF6B1A] hover:underline flex items-center space-x-0.5"
+                  title="Cadastrar ou editar categorias"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Gerenciar</span>
+                </button>
+              )}
+            </div>
             <select
               value={selectedCategoriaId}
               onChange={(e) => setSelectedCategoriaId(Number(e.target.value))}
@@ -453,6 +478,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       )}
+
+      {/* Category Manager Modal */}
+      <CategoryManagerModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        categorias={categorias}
+        onRefreshData={async () => {
+          await onRefreshData();
+        }}
+        onSelectCategoria={(newId) => {
+          setSelectedCategoriaId(newId);
+        }}
+      />
     </>
   );
 };

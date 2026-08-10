@@ -27,6 +27,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
     );
     if (res[0]) {
       setConfig(res[0]);
+    } else {
+      await runQuery(
+        `INSERT INTO configuracoes_categoria 
+         (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas)
+         VALUES (?, 100, 50, 2, 3, 1, 1, 7, 5);`,
+        [categoriaId]
+      );
+      const newRes = await query<ConfigCategoria>(
+        'SELECT * FROM configuracoes_categoria WHERE categoria_id = ?;',
+        [categoriaId]
+      );
+      if (newRes[0]) setConfig(newRes[0]);
     }
   };
 
