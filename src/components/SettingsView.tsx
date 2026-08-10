@@ -66,9 +66,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-6 shadow-xl">
+      <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 shadow-xl">
         <div className="flex items-center space-x-2 mb-1">
-          <Settings className="w-5 h-5 text-[#00E676]" />
+          <Settings className="w-5 h-5 text-[#FF6B1A]" />
           <h2 className="text-xl font-black text-white uppercase tracking-tight">Configurações e Regras do Torneio</h2>
         </div>
         <p className="text-xs text-[#8E9299]">
@@ -76,9 +76,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
         </p>
       </div>
 
-      <form onSubmit={handleSave} className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-6 space-y-6 shadow-xl">
+      <form onSubmit={handleSave} className="bg-[#161920] border border-[#262933] rounded-2xl p-6 space-y-6 shadow-xl">
         {savedSuccess && (
-          <div className="bg-[#00E676]/10 border border-[#00E676]/30 text-[#00E676] p-4 rounded-xl text-xs font-mono font-bold flex items-center space-x-2">
+          <div className="bg-[#FF6B1A]/10 border border-[#FF6B1A]/30 text-[#FF6B1A] p-4 rounded-xl text-xs font-mono font-bold flex items-center space-x-2">
             <CheckCircle className="w-4 h-4" />
             <span>Configurações salvas com sucesso! As novas regras já estão valendo.</span>
           </div>
@@ -86,7 +86,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
 
         {/* Section 1: Inscrição e Tempo */}
         <div className="space-y-4">
-          <h3 className="text-xs font-bold text-[#00E676] uppercase tracking-widest font-mono">
+          <h3 className="text-xs font-bold text-[#FF6B1A] uppercase tracking-widest font-mono">
             1. Formato da Partida & Financeiro
           </h3>
 
@@ -99,7 +99,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
                 required
                 value={config.valor_inscricao}
                 onChange={(e) => setConfig({ ...config, valor_inscricao: Number(e.target.value) })}
-                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
               />
             </div>
 
@@ -110,14 +110,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
                 required
                 value={config.tempo_jogo_minutos}
                 onChange={(e) => setConfig({ ...config, tempo_jogo_minutos: Number(e.target.value) })}
-                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
               />
             </div>
           </div>
         </div>
 
         {/* Section 2: Cartões e Suspensões */}
-        <div className="space-y-4 pt-4 border-t border-[#2D3139]">
+        <div className="space-y-4 pt-4 border-t border-[#262933]">
           <h3 className="text-xs font-bold text-[#FFC400] uppercase tracking-widest font-mono">
             2. Regras de Cartões & Suspensões Automáticas
           </h3>
@@ -132,7 +132,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
                 required
                 value={config.amarelos_acumulados_suspensao}
                 onChange={(e) => setConfig({ ...config, amarelos_acumulados_suspensao: Number(e.target.value) })}
-                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
               />
               <p className="text-[10px] text-[#8E9299] font-mono mt-1">Ex: 3 amarelos em jogos diferentes gera suspensão automática.</p>
             </div>
@@ -144,7 +144,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
                 required
                 value={config.jogos_suspensao_amarelo}
                 onChange={(e) => setConfig({ ...config, jogos_suspensao_amarelo: Number(e.target.value) })}
-                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
               />
             </div>
 
@@ -155,15 +155,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
                 required
                 value={config.jogos_suspensao_vermelho}
                 onChange={(e) => setConfig({ ...config, jogos_suspensao_vermelho: Number(e.target.value) })}
-                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
               />
             </div>
           </div>
         </div>
 
         {/* Section 3: Tamanho de Elenco */}
-        <div className="space-y-4 pt-4 border-t border-[#2D3139]">
-          <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest font-mono">
+        <div className="space-y-4 pt-4 border-t border-[#262933]">
+          <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest font-mono">
             3. Composição de Elenco por Time
           </h3>
 
@@ -175,7 +175,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
                 required
                 value={config.num_titulares}
                 onChange={(e) => setConfig({ ...config, num_titulares: Number(e.target.value) })}
-                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
               />
             </div>
 
@@ -186,16 +186,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
                 required
                 value={config.num_reservas}
                 onChange={(e) => setConfig({ ...config, num_reservas: Number(e.target.value) })}
-                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
               />
             </div>
           </div>
         </div>
 
-        <div className="pt-4 border-t border-[#2D3139] flex justify-end">
+        <div className="pt-4 border-t border-[#262933] flex justify-end">
           <button
             type="submit"
-            className="px-6 py-3 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,230,118,0.3)] flex items-center space-x-2"
+            className="px-6 py-3 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] flex items-center space-x-2"
           >
             <Save className="w-4 h-4" />
             <span>Salvar Regras da Categoria</span>

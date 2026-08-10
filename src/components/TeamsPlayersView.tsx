@@ -70,10 +70,8 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   };
 
   const handleDeleteTeam = async (teamId: number) => {
-    if (confirm('Deseja excluir este time? Os jogadores ficarão sem time atribuído.')) {
-      await runQuery('DELETE FROM times WHERE id = ?;', [teamId]);
-      loadData();
-    }
+    await runQuery('DELETE FROM times WHERE id = ?;', [teamId]);
+    loadData();
   };
 
   const handleCreatePlayer = async (e: React.FormEvent) => {
@@ -98,22 +96,20 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   };
 
   const handleDeletePlayer = async (playerId: number) => {
-    if (confirm('Deseja excluir este jogador?')) {
-      await runQuery('DELETE FROM jogadores WHERE id = ?;', [playerId]);
-      loadData();
-    }
+    await runQuery('DELETE FROM jogadores WHERE id = ?;', [playerId]);
+    loadData();
   };
 
   return (
     <div className="space-y-6">
       {/* Top Tabs & Add Actions */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#16191F] p-4 rounded-2xl border border-[#2D3139] shadow-xl">
-        <div className="flex space-x-2 bg-[#0F1115] p-1.5 rounded-2xl border border-[#2D3139]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#161920] p-4 rounded-2xl border border-[#262933] shadow-xl">
+        <div className="flex space-x-2 bg-[#0F1115] p-1.5 rounded-2xl border border-[#262933]">
           <button
             onClick={() => setActiveTab('times')}
             className={`px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all ${
               activeTab === 'times'
-                ? 'bg-[#00E676] text-black shadow-[0_0_10px_rgba(0,230,118,0.3)]'
+                ? 'bg-[#FF6B1A] text-black shadow-[0_0_10px_rgba(255,107,26,0.3)]'
                 : 'text-[#8E9299] hover:text-white'
             }`}
           >
@@ -124,7 +120,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
             onClick={() => setActiveTab('jogadores')}
             className={`px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all ${
               activeTab === 'jogadores'
-                ? 'bg-[#00E676] text-black shadow-[0_0_10px_rgba(0,230,118,0.3)]'
+                ? 'bg-[#FF6B1A] text-black shadow-[0_0_10px_rgba(255,107,26,0.3)]'
                 : 'text-[#8E9299] hover:text-white'
             }`}
           >
@@ -136,7 +132,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
           {activeTab === 'times' ? (
             <button
               onClick={() => setShowTeamModal(true)}
-              className="px-4 py-2.5 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,230,118,0.3)] transition-all flex items-center space-x-1.5"
+              className="px-4 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-1.5"
             >
               <Plus className="w-4 h-4" />
               <span>Novo Time</span>
@@ -144,7 +140,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
           ) : (
             <button
               onClick={() => setShowPlayerModal(true)}
-              className="px-4 py-2.5 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,230,118,0.3)] transition-all flex items-center space-x-1.5"
+              className="px-4 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-1.5"
             >
               <Plus className="w-4 h-4" />
               <span>Novo Jogador</span>
@@ -159,7 +155,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
           {teams.map((t) => (
             <div
               key={t.id}
-              className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 hover:border-[#00E676]/40 transition-all shadow-xl space-y-4"
+              className="bg-[#161920] border border-[#262933] rounded-2xl p-5 hover:border-[#FF6B1A]/40 transition-all shadow-xl space-y-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -190,10 +186,10 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
 
       {/* Tab Content: Jogadores */}
       {activeTab === 'jogadores' && (
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="bg-[#161920] border border-[#262933] rounded-2xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#0F1115] text-[#8E9299] uppercase font-mono font-bold border-b border-[#2D3139] text-[10px] tracking-wider">
+              <thead className="bg-[#0F1115] text-[#8E9299] uppercase font-mono font-bold border-b border-[#262933] text-[10px] tracking-wider">
                 <tr>
                   <th className="py-3 px-4">Nome do Atleta</th>
                   <th className="py-3 px-4">Posição / Pote</th>
@@ -202,14 +198,14 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                   <th className="py-3 px-4 text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#2D3139]">
+              <tbody className="divide-y divide-[#262933]">
                 {players.map((p) => {
                   const posInfo = POSICOES_MAP[p.camisa_posicao] || { nome: 'Jogador', sigla: 'JOG' };
                   return (
                     <tr key={p.id} className="hover:bg-[#0F1115]/50 transition-colors">
                       <td className="py-3 px-4 font-bold text-white">{p.nome}</td>
                       <td className="py-3 px-4 text-[#E0E6ED]">
-                        <span className="px-2 py-0.5 bg-[#0F1115] text-[#00E676] rounded font-mono font-bold text-[10px] border border-[#2D3139]">
+                        <span className="px-2 py-0.5 bg-[#0F1115] text-[#FF6B1A] rounded font-mono font-bold text-[10px] border border-[#262933]">
                           Pote #{p.camisa_posicao} - {posInfo.nome}
                         </span>
                       </td>
@@ -231,7 +227,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                           onClick={() => handleTogglePayment(p.id, p.pago)}
                           className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-all border ${
                             p.pago
-                              ? 'bg-[#00E676]/20 text-[#00E676] border-[#00E676]/30'
+                              ? 'bg-[#FF6B1A]/20 text-[#FF6B1A] border-[#FF6B1A]/30'
                               : 'bg-[#FFC400]/20 text-[#FFC400] border-[#FFC400]/30'
                           }`}
                         >
@@ -258,7 +254,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
       {/* Modal Novo Time */}
       {showTeamModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <h3 className="text-base font-black text-white uppercase tracking-tight">Cadastrar Novo Time</h3>
             <form onSubmit={handleCreateTeam} className="space-y-4 text-xs">
               <div>
@@ -269,7 +265,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
                   placeholder="Ex: Real Matismo FC"
-                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                 />
               </div>
 
@@ -280,7 +276,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                     type="color"
                     value={newTeamColor}
                     onChange={(e) => setNewTeamColor(e.target.value)}
-                    className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#2D3139] cursor-pointer"
+                    className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
                   />
                 </div>
 
@@ -290,7 +286,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                     type="text"
                     value={newTeamBadge}
                     onChange={(e) => setNewTeamBadge(e.target.value)}
-                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#2D3139] text-center font-bold"
+                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] text-center font-bold"
                   />
                 </div>
               </div>
@@ -299,13 +295,13 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 <button
                   type="button"
                   onClick={() => setShowTeamModal(false)}
-                  className="px-4 py-2 bg-[#2D3139] text-[#E0E6ED] hover:bg-[#3D424D] rounded-xl font-mono text-xs uppercase"
+                  className="px-4 py-2 bg-[#0F1115] text-[#E0E6ED] hover:bg-[#222632] border border-[#262933] rounded-xl font-mono text-xs uppercase"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,230,118,0.3)]"
+                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
                 >
                   Salvar Time
                 </button>
@@ -318,7 +314,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
       {/* Modal Novo Jogador */}
       {showPlayerModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <h3 className="text-base font-black text-white uppercase tracking-tight">Inscrever Novo Jogador</h3>
             <form onSubmit={handleCreatePlayer} className="space-y-4 text-xs">
               <div>
@@ -329,7 +325,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                   value={newPlayerName}
                   onChange={(e) => setNewPlayerName(e.target.value)}
                   placeholder="Ex: Carlos Silva"
-                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                 />
               </div>
 
@@ -338,7 +334,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 <select
                   value={newPlayerCamisa}
                   onChange={(e) => setNewPlayerCamisa(Number(e.target.value))}
-                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                 >
                   {Object.entries(POSICOES_MAP).map(([k, v]) => (
                     <option key={k} value={k}>
@@ -353,7 +349,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 <select
                   value={newPlayerPaid}
                   onChange={(e) => setNewPlayerPaid(Number(e.target.value))}
-                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676]"
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                 >
                   <option value={1}>Pago</option>
                   <option value={0}>Pendente</option>
@@ -364,13 +360,13 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 <button
                   type="button"
                   onClick={() => setShowPlayerModal(false)}
-                  className="px-4 py-2 bg-[#2D3139] text-[#E0E6ED] hover:bg-[#3D424D] rounded-xl font-mono text-xs uppercase"
+                  className="px-4 py-2 bg-[#0F1115] text-[#E0E6ED] hover:bg-[#222632] border border-[#262933] rounded-xl font-mono text-xs uppercase"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,230,118,0.3)]"
+                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
                 >
                   Salvar Jogador
                 </button>

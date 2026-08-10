@@ -127,16 +127,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Category Hero Header */}
-      <div className="bg-[#16191F] rounded-2xl p-6 border border-[#2D3139] shadow-2xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00E676]/5 to-transparent pointer-events-none"></div>
+      <div className="bg-[#161920] rounded-2xl p-6 border border-[#262933] shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FF6B1A]/5 to-transparent pointer-events-none"></div>
         <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">
-          <Trophy className="w-64 h-64 text-[#00E676]" />
+          <Trophy className="w-64 h-64 text-[#FF6B1A]" />
         </div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-3 mb-1">
-              <span className="px-3 py-1 bg-[#00E676]/10 text-[#00E676] text-[10px] font-mono font-bold rounded-full border border-[#00E676]/30 uppercase tracking-widest">
+              <span className="px-3 py-1 bg-[#FF6B1A]/10 text-[#FF6B1A] text-[10px] font-mono font-bold rounded-full border border-[#FF6B1A]/30 uppercase tracking-widest">
                 Categoria Ativa
               </span>
               <span className="text-[11px] text-[#8E9299] font-mono">
@@ -154,13 +154,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center space-x-3">
             <button
               onClick={() => onNavigateTab('sorteio')}
-              className="px-4 py-2.5 bg-[#2D3139] hover:bg-[#3D424D] text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center space-x-2"
+              className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-white border border-[#262933] rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center space-x-2"
             >
               <span>Sorteio / Draft</span>
             </button>
             <button
               onClick={() => onNavigateTab('jogos')}
-              className="px-5 py-2.5 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(0,230,118,0.3)] transition-all flex items-center space-x-2"
+              className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-2"
             >
               <span>Gerar Jogos</span>
             </button>
@@ -171,10 +171,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Teams */}
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 hover:border-[#00E676]/50 transition-all">
+        <button
+          onClick={() => onNavigateTab('times')}
+          className="w-full text-left bg-[#161920] border border-[#262933] rounded-2xl p-5 hover:border-[#FF6B1A] hover:scale-[1.01] transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-[#8E9299] uppercase tracking-widest">Times Cadastrados</span>
-            <div className="p-2.5 bg-[#2D3139] text-[#00E676] rounded-xl border border-[#2D3139]">
+            <span className="text-[10px] font-bold text-[#8E9299] group-hover:text-white uppercase tracking-widest transition-colors">Times Cadastrados</span>
+            <div className="p-2.5 bg-[#0F1115] text-[#FF6B1A] group-hover:bg-[#FF6B1A] group-hover:text-black rounded-xl border border-[#262933] transition-all">
               <Trophy className="w-5 h-5" />
             </div>
           </div>
@@ -182,27 +185,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-3xl font-black font-mono text-white">{teamsCount}</span>
             <span className="text-[11px] text-[#8E9299]">times na categoria</span>
           </div>
-        </div>
+        </button>
 
         {/* Total Players */}
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 hover:border-[#00E676]/50 transition-all">
+        <button
+          onClick={() => onNavigateTab('times')}
+          className="w-full text-left bg-[#161920] border border-[#262933] rounded-2xl p-5 hover:border-[#FF6B1A] hover:scale-[1.01] transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-[#8E9299] uppercase tracking-widest">Jogadores Inscritos</span>
-            <div className="p-2.5 bg-[#00E676]/10 text-[#00E676] rounded-xl border border-[#00E676]/20">
+            <span className="text-[10px] font-bold text-[#8E9299] group-hover:text-white uppercase tracking-widest transition-colors">Jogadores Inscritos</span>
+            <div className="p-2.5 bg-[#FF6B1A]/10 text-[#FF6B1A] group-hover:bg-[#FF6B1A] group-hover:text-black rounded-xl border border-[#FF6B1A]/20 transition-all">
               <Users className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline space-x-2">
             <span className="text-3xl font-black font-mono text-white">{playersCount}</span>
-            <span className="text-xs font-bold text-[#00E676] font-mono">{paidCount} pagos</span>
+            <span className="text-xs font-bold text-[#FF6B1A] font-mono">{paidCount} pagos</span>
           </div>
-        </div>
+        </button>
 
         {/* Financial Balance */}
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 hover:border-[#FFC400]/50 transition-all">
+        <button
+          onClick={() => onNavigateTab('regras')}
+          className="w-full text-left bg-[#161920] border border-[#262933] rounded-2xl p-5 hover:border-[#FFC400] hover:scale-[1.01] transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-[#8E9299] uppercase tracking-widest">Arrecadação Inscrições</span>
-            <div className="p-2.5 bg-[#FFC400]/10 text-[#FFC400] rounded-xl border border-[#FFC400]/20">
+            <span className="text-[10px] font-bold text-[#8E9299] group-hover:text-white uppercase tracking-widest transition-colors">Arrecadação Inscrições</span>
+            <div className="p-2.5 bg-[#FFC400]/10 text-[#FFC400] group-hover:bg-[#FFC400] group-hover:text-black rounded-xl border border-[#FFC400]/20 transition-all">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
@@ -212,13 +221,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </span>
           </div>
           <p className="text-[10px] text-[#8E9299] mt-1 font-mono">Taxa: R$ {config?.valor_inscricao?.toFixed(2) || '0.00'}/atleta</p>
-        </div>
+        </button>
 
         {/* Matches Status */}
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 hover:border-[#00E676]/50 transition-all">
+        <button
+          onClick={() => onNavigateTab('jogos')}
+          className="w-full text-left bg-[#161920] border border-[#262933] rounded-2xl p-5 hover:border-[#FF6B1A] hover:scale-[1.01] transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-[#8E9299] uppercase tracking-widest">Total de Partidas</span>
-            <div className="p-2.5 bg-[#2D3139] text-[#00E676] rounded-xl">
+            <span className="text-[10px] font-bold text-[#8E9299] group-hover:text-white uppercase tracking-widest transition-colors">Total de Partidas</span>
+            <div className="p-2.5 bg-[#0F1115] text-[#FF6B1A] group-hover:bg-[#FF6B1A] group-hover:text-black rounded-xl border border-[#262933] transition-all">
               <Activity className="w-5 h-5" />
             </div>
           </div>
@@ -228,7 +240,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {matches.filter((m) => m.status === 'FINALIZADO').length} finalizadas
             </span>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Main Grid Section */}
@@ -238,12 +250,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-[#8E9299] uppercase tracking-widest flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-[#00E676]"></span>
+              <span className="w-2 h-2 rounded-full bg-[#FF6B1A]"></span>
               <span>Partidas da Categoria</span>
             </h3>
             <button
               onClick={() => onNavigateTab('jogos')}
-              className="text-xs text-[#00E676] hover:underline font-bold flex items-center space-x-1 uppercase tracking-wider"
+              className="text-xs text-[#FF6B1A] hover:underline font-bold flex items-center space-x-1 uppercase tracking-wider"
             >
               <span>Ver tabela completa</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -251,7 +263,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {matches.length === 0 ? (
-            <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-8 text-center space-y-3">
+            <div className="bg-[#161920] border border-[#262933] rounded-2xl p-8 text-center space-y-3">
               <AlertCircle className="w-10 h-10 text-[#8E9299] mx-auto" />
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Nenhum confronto gerado ainda</h4>
               <p className="text-xs text-[#8E9299]">
@@ -259,7 +271,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </p>
               <button
                 onClick={() => onNavigateTab('jogos')}
-                className="mt-2 px-5 py-2.5 bg-[#00E676] hover:bg-[#00c853] text-black text-xs font-extrabold uppercase tracking-wider rounded-xl shadow-[0_0_15px_rgba(0,230,118,0.3)]"
+                className="mt-2 px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black text-xs font-extrabold uppercase tracking-wider rounded-xl shadow-[0_0_15px_rgba(255,107,26,0.3)]"
               >
                 Gerar Confrontos Agora
               </button>
@@ -269,7 +281,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {matches.map((m) => (
                 <div
                   key={m.id}
-                  className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-4 hover:border-[#00E676]/40 transition-all flex flex-col sm:flex-row items-center justify-between gap-4"
+                  className="bg-[#161920] border border-[#262933] rounded-2xl p-4 hover:border-[#FF6B1A]/40 transition-all flex flex-col sm:flex-row items-center justify-between gap-4"
                 >
                   <div className="flex items-center space-x-2">
                     <span
@@ -277,8 +289,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         m.status === 'EM_ANDAMENTO'
                           ? 'bg-[#FF1744]/20 text-[#FF1744] border border-[#FF1744]/30 animate-pulse'
                           : m.status === 'FINALIZADO'
-                          ? 'bg-[#00E676]/20 text-[#00E676] border border-[#00E676]/30'
-                          : 'bg-[#2D3139] text-[#8E9299] border border-[#2D3139]'
+                          ? 'bg-[#FF6B1A]/20 text-[#FF6B1A] border border-[#FF6B1A]/30'
+                          : 'bg-[#0F1115] text-[#8E9299] border border-[#262933]'
                       }`}
                     >
                       {m.status === 'EM_ANDAMENTO' ? '● Em Andamento' : m.status}
@@ -298,10 +310,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
 
                     {/* Score */}
-                    <div className="bg-[#0F1115] px-4 py-1.5 rounded-xl border border-[#2D3139] font-mono font-black text-sm text-white flex items-center space-x-2">
-                      <span className="text-[#00E676]">{m.gols_mandante}</span>
-                      <span className="text-[#2D3139] text-xs">:</span>
-                      <span className="text-[#00E676]">{m.gols_visitante}</span>
+                    <div className="bg-[#0F1115] px-4 py-1.5 rounded-xl border border-[#262933] font-mono font-black text-sm text-white flex items-center space-x-2">
+                      <span className="text-[#FF6B1A]">{m.gols_mandante}</span>
+                      <span className="text-[#262933] text-xs">:</span>
+                      <span className="text-[#FF6B1A]">{m.gols_visitante}</span>
                     </div>
 
                     {/* Visitante */}
@@ -317,7 +329,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {/* Live Match Action Button */}
                   <button
                     onClick={() => onNavigateToMatch(m.id)}
-                    className="w-full sm:w-auto px-4 py-2 bg-[#2D3139] hover:bg-[#00E676] text-white hover:text-black rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-1.5"
+                    className="w-full sm:w-auto px-4 py-2 bg-[#0F1115] hover:bg-[#FF6B1A] text-white hover:text-black border border-[#262933] hover:border-[#FF6B1A] rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-1.5"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Súmula</span>
@@ -331,15 +343,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Right Sidebar Column: Standings & Top Scorers Preview */}
         <div className="space-y-6">
           {/* Standings Quick View */}
-          <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-[#2D3139]">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
               <h3 className="text-xs font-bold text-[#8E9299] uppercase tracking-widest flex items-center space-x-2">
                 <Trophy className="w-4 h-4 text-[#FFC400]" />
                 <span>Classificação Parcial</span>
               </h3>
               <button
                 onClick={() => onNavigateTab('classificacao')}
-                className="text-[10px] text-[#00E676] font-bold uppercase tracking-wider hover:underline"
+                className="text-[10px] text-[#FF6B1A] font-bold uppercase tracking-wider hover:underline"
               >
                 Ver tudo
               </button>
@@ -352,7 +364,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {standings.map((st, idx) => (
                   <div
                     key={st.time_id}
-                    className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#0F1115] border border-[#2D3139]"
+                    className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#0F1115] border border-[#262933]"
                   >
                     <div className="flex items-center space-x-2.5">
                       <span className="font-mono font-bold text-[#8E9299] w-4">{idx + 1}º</span>
@@ -364,7 +376,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <div className="flex items-center space-x-3 text-[#8E9299] font-mono text-xs">
                       <span>{st.jogos}j</span>
-                      <span className="font-black text-[#00E676]">{st.pontos}p</span>
+                      <span className="font-black text-[#FF6B1A]">{st.pontos}p</span>
                     </div>
                   </div>
                 ))}
@@ -373,15 +385,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Top Goalscorers Quick View */}
-          <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-[#2D3139]">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
               <h3 className="text-xs font-bold text-[#8E9299] uppercase tracking-widest flex items-center space-x-2">
-                <ShieldAlert className="w-4 h-4 text-[#00E676]" />
+                <ShieldAlert className="w-4 h-4 text-[#FF6B1A]" />
                 <span>Artilharia</span>
               </h3>
               <button
                 onClick={() => onNavigateTab('classificacao')}
-                className="text-[10px] text-[#00E676] font-bold uppercase tracking-wider hover:underline"
+                className="text-[10px] text-[#FF6B1A] font-bold uppercase tracking-wider hover:underline"
               >
                 Ver tudo
               </button>
@@ -394,7 +406,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {artilharia.map((art, idx) => (
                   <div
                     key={art.jogador_id}
-                    className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#0F1115] border border-[#2D3139]"
+                    className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#0F1115] border border-[#262933]"
                   >
                     <div className="flex items-center space-x-2.5">
                       <span className="font-mono font-bold text-[#8E9299] w-4">{idx + 1}º</span>
@@ -403,7 +415,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <p className="text-[10px] text-[#8E9299]">{art.time_nome}</p>
                       </div>
                     </div>
-                    <div className="bg-[#00E676]/10 border border-[#00E676]/30 text-[#00E676] font-mono font-black px-2 py-0.5 rounded text-xs">
+                    <div className="bg-[#FF6B1A]/10 border border-[#FF6B1A]/30 text-[#FF6B1A] font-mono font-black px-2 py-0.5 rounded text-xs">
                       {art.gols} ⚽
                     </div>
                   </div>

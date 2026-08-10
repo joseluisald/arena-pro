@@ -4,6 +4,8 @@
  */
 
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
+// @ts-ignore
+import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { SEED_DATA } from '../data/seedData';
 
 let SQL: SqlJsStatic | null = null;
@@ -11,14 +13,18 @@ let dbInstance: Database | null = null;
 
 const DB_STORAGE_KEY = 'torneio_society_db_v1';
 
+async function initSqlInstance(): Promise<SqlJsStatic> {
+  if (SQL) return SQL;
+  SQL = await initSqlJs({
+    locateFile: (file) => (file.endsWith('.wasm') ? sqlWasmUrl : `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`),
+  });
+  return SQL;
+}
+
 export async function getDb(): Promise<Database> {
   if (dbInstance) return dbInstance;
 
-  if (!SQL) {
-    SQL = await initSqlJs({
-      locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${file}`,
-    });
-  }
+  const sqlInstance = await initSqlInstance();
 
   // Check if we have a saved database in localStorage
   const savedDbBase64 = localStorage.getItem(DB_STORAGE_KEY);
@@ -83,11 +89,7 @@ export async function importSqliteFile(file: File): Promise<void> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
 
-  if (!SQL) {
-    SQL = await initSqlJs({
-      locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${file}`,
-    });
-  }
+  const sqlInstance = await initSqlInstance();
 
   if (dbInstance) {
     dbInstance.close();

@@ -187,14 +187,36 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
     loadMatchData(match.id);
   };
 
-  const handleFinalizeMatch = async () => {
+  // Finalize Match modal & status states
+  const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+  const [isFinalizingLoading, setIsFinalizingLoading] = useState(false);
+  const [finalizeSuccessMessage, setFinalizeSuccessMessage] = useState<string | null>(null);
+
+  const handleFinalizeMatch = () => {
     if (!match) return;
-    if (confirm('Deseja realmente finalizar a partida? Esta ação atualizará automaticamente a classificação, artilharia e suspensões por cartão.')) {
+    setIsFinalizeModalOpen(true);
+  };
+
+  const confirmAndFinalizeMatch = async () => {
+    if (!match) return;
+    try {
+      setIsFinalizingLoading(true);
       setIsRunning(false);
       await finalizeMatch(match.id, elapsedSeconds);
-      loadMatchData(match.id);
+      await loadMatchData(match.id);
       onMatchFinalized();
-      alert('Partida finalizada com sucesso! Súmula e regras atualizadas.');
+      setIsFinalizeModalOpen(false);
+      setFinalizeSuccessMessage('Partida finalizada com sucesso! A classificação da categoria, artilharia e suspensões por cartão foram reprocessadas e salvas.');
+
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.5 },
+      });
+    } catch (err: any) {
+      console.error('Erro ao finalizar partida:', err);
+    } finally {
+      setIsFinalizingLoading(false);
     }
   };
 
@@ -206,7 +228,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
   if (matchList.length === 0) {
     return (
-      <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-10 text-center space-y-4">
+      <div className="bg-[#161920] border border-[#262933] rounded-2xl p-10 text-center space-y-4">
         <Clock className="w-12 h-12 text-[#8E9299] mx-auto" />
         <h3 className="text-lg font-extrabold text-white uppercase tracking-wide">Nenhuma partida encontrada</h3>
         <p className="text-xs text-[#8E9299] max-w-md mx-auto">
@@ -214,7 +236,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
         </p>
         <button
           onClick={onBack}
-          className="px-5 py-2.5 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,230,118,0.3)]"
+          className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
         >
           Voltar e Gerar Tabela
         </button>
@@ -224,17 +246,31 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Header Selector & Controls */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#16191F] border border-[#2D3139] p-4 rounded-2xl shadow-xl">
+      {/* Success Notification Banner */}
+      {finalizeSuccessMessage && (
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between text-xs text-emerald-400 font-mono space-x-3">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="w-5 h-5 shrink-0 text-emerald-400" />
+            <span>{finalizeSuccessMessage}</span>
+          </div>
+          <button
+            onClick={() => setFinalizeSuccessMessage(null)}
+            className="p-1 hover:bg-emerald-500/20 rounded-lg text-emerald-300"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#161920] border border-[#262933] p-4 rounded-2xl shadow-xl">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBack}
-            className="p-2 bg-[#2D3139] hover:bg-[#3D424D] text-[#E0E6ED] rounded-xl transition-colors"
+            className="p-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <span className="text-[10px] font-mono font-bold text-[#00E676] uppercase tracking-widest">
+            <span className="text-[10px] font-mono font-bold text-[#FF6B1A] uppercase tracking-widest">
               Mesa Operacional / Mesário
             </span>
             <h2 className="text-lg font-black text-white uppercase tracking-tight">Súmula Digital em Tempo Real</h2>
@@ -242,12 +278,12 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
         </div>
 
         {/* Match Switcher Dropdown */}
-        <div className="flex items-center space-x-2 bg-[#0F1115] p-1.5 rounded-xl border border-[#2D3139]">
+        <div className="flex items-center space-x-2 bg-[#0F1115] p-1.5 rounded-xl border border-[#262933]">
           <span className="text-[10px] text-[#8E9299] font-mono uppercase tracking-wider pl-2">Partida:</span>
           <select
             value={selectedMatchId || ''}
             onChange={(e) => setSelectedMatchId(Number(e.target.value))}
-            className="bg-[#16191F] text-[#00E676] text-xs font-bold font-mono rounded-lg px-3 py-2 border border-[#2D3139] focus:outline-none focus:ring-1 focus:ring-[#00E676] max-w-[220px] truncate"
+            className="bg-[#161920] text-[#FF6B1A] text-xs font-bold font-mono rounded-lg px-3 py-2 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A] max-w-[220px] truncate"
           >
             {matchList.map((m) => (
               <option key={m.id} value={m.id}>
@@ -265,11 +301,11 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
           <div className="lg:col-span-2 space-y-6">
             
             {/* Scoreboard Card */}
-            <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-6 relative overflow-hidden shadow-2xl">
+            <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 relative overflow-hidden shadow-2xl">
               
               {/* Match Status Badge */}
               <div className="flex items-center justify-between mb-6">
-                <span className="text-[10px] font-mono font-bold text-[#8E9299] bg-[#0F1115] px-3 py-1 rounded-full border border-[#2D3139] uppercase tracking-wider">
+                <span className="text-[10px] font-mono font-bold text-[#8E9299] bg-[#0F1115] px-3 py-1 rounded-full border border-[#262933] uppercase tracking-wider">
                   {match.fase_nome} • Rodada {match.rodada}
                 </span>
 
@@ -278,8 +314,8 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                     match.status === 'EM_ANDAMENTO'
                       ? 'bg-[#FF1744]/20 text-[#FF1744] border-[#FF1744]/30 animate-pulse'
                       : match.status === 'FINALIZADO'
-                      ? 'bg-[#00E676]/20 text-[#00E676] border-[#00E676]/30'
-                      : 'bg-[#2D3139] text-[#8E9299] border-[#2D3139]'
+                      ? 'bg-[#FF6B1A]/20 text-[#FF6B1A] border-[#FF6B1A]/30'
+                      : 'bg-[#0F1115] text-[#8E9299] border-[#262933]'
                   }`}
                 >
                   {match.status === 'EM_ANDAMENTO' ? '● Em Andamento' : match.status}
@@ -305,10 +341,10 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
                 {/* Score Big Display */}
                 <div className="flex flex-col items-center justify-center space-y-1">
-                  <div className="bg-[#0F1115] px-6 py-3 rounded-2xl border border-[#2D3139] text-4xl sm:text-5xl font-mono font-black text-white tracking-widest flex items-center space-x-3 shadow-inner">
-                    <span className="text-[#00E676]">{match.gols_mandante}</span>
-                    <span className="text-[#2D3139] text-2xl">:</span>
-                    <span className="text-[#00E676]">{match.gols_visitante}</span>
+                  <div className="bg-[#0F1115] px-6 py-3 rounded-2xl border border-[#262933] text-4xl sm:text-5xl font-mono font-black text-white tracking-widest flex items-center space-x-3 shadow-inner">
+                    <span className="text-[#FF6B1A]">{match.gols_mandante}</span>
+                    <span className="text-[#262933] text-2xl">:</span>
+                    <span className="text-[#FF6B1A]">{match.gols_visitante}</span>
                   </div>
                   <span className="text-[10px] text-[#8E9299] font-mono mt-1">
                     Tempo limite: {categoryMinutes}min
@@ -331,7 +367,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
               </div>
 
               {/* Live Digital Timer Bar */}
-              <div className="mt-8 bg-[#0F1115] border border-[#2D3139] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="mt-8 bg-[#0F1115] border border-[#262933] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 
                 {/* Digital Clock display */}
                 <div className="flex items-center space-x-3">
@@ -351,7 +387,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                     className={`px-4 py-2 rounded-xl text-xs font-mono font-extrabold uppercase tracking-wider flex items-center space-x-2 transition-all ${
                       isRunning
                         ? 'bg-[#FFC400] hover:bg-[#e6b000] text-black shadow-[0_0_15px_rgba(255,196,0,0.3)]'
-                        : 'bg-[#00E676] hover:bg-[#00c853] text-black shadow-[0_0_15px_rgba(0,230,118,0.3)]'
+                        : 'bg-[#FF6B1A] hover:bg-[#e05a0f] text-black shadow-[0_0_15px_rgba(255,107,26,0.3)]'
                     }`}
                   >
                     {isRunning ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
@@ -360,7 +396,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
                   <button
                     onClick={() => handleAddExtraMinutes(1)}
-                    className="px-3 py-2 bg-[#2D3139] hover:bg-[#3D424D] text-[#E0E6ED] rounded-xl text-xs font-mono font-bold"
+                    className="px-3 py-2 bg-[#161920] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold"
                   >
                     +1min
                   </button>
@@ -368,7 +404,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                   <button
                     onClick={handleResetTimer}
                     title="Zerar Cronômetro"
-                    className="p-2 bg-[#2D3139] hover:bg-[#3D424D] text-[#8E9299] hover:text-white rounded-xl"
+                    className="p-2 bg-[#161920] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] rounded-xl"
                   >
                     <RotateCcw className="w-4 h-4" />
                   </button>
@@ -379,7 +415,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
               {match.status !== 'FINALIZADO' && (
                 <button
                   onClick={handleFinalizeMatch}
-                  className="mt-6 w-full py-3.5 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(0,230,118,0.3)] transition-all flex items-center justify-center space-x-2"
+                  className="mt-6 w-full py-3.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,107,26,0.3)] transition-all flex items-center justify-center space-x-2"
                 >
                   <CheckCircle className="w-4 h-4" />
                   <span>Finalizar Partida e Processar Regras / Suspensões</span>
@@ -391,8 +427,8 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Mandante Roster */}
-              <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-4 space-y-3">
-                <div className="flex items-center space-x-2 pb-2 border-b border-[#2D3139]">
+              <div className="bg-[#161920] border border-[#262933] rounded-2xl p-4 space-y-3">
+                <div className="flex items-center space-x-2 pb-2 border-b border-[#262933]">
                   <div
                     className="w-3.5 h-3.5 rounded-full border border-white/20"
                     style={{ backgroundColor: match.time_mandante_cor }}
@@ -407,12 +443,12 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                       onClick={() => setSelectedPlayer({ player, teamId: match.time_mandante_id })}
                       className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                         selectedPlayer?.player.id === player.id
-                          ? 'bg-[#00E676]/20 border-[#00E676] text-white shadow-[0_0_10px_rgba(0,230,118,0.2)]'
-                          : 'bg-[#0F1115] border-[#2D3139] hover:border-[#3D424D] text-[#E0E6ED]'
+                          ? 'bg-[#FF6B1A]/20 border-[#FF6B1A] text-white shadow-[0_0_10px_rgba(255,107,26,0.2)]'
+                          : 'bg-[#0F1115] border-[#262933] hover:border-[#FF6B1A]/40 text-[#E0E6ED]'
                       }`}
                     >
                       <div className="flex items-center space-x-2">
-                        <span className="w-5 h-5 bg-[#2D3139] text-[#00E676] font-mono font-bold text-[10px] rounded flex items-center justify-center">
+                        <span className="w-5 h-5 bg-[#161920] text-[#FF6B1A] font-mono font-bold text-[10px] rounded flex items-center justify-center border border-[#262933]">
                           {player.camisa_posicao}
                         </span>
                         <span className="text-xs font-semibold text-white truncate max-w-[120px] sm:max-w-[140px]">
@@ -423,7 +459,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                       {/* Stats Pills */}
                       <div className="flex items-center space-x-1">
                         {player.gols! > 0 && (
-                          <span className="text-[10px] bg-[#00E676]/20 text-[#00E676] font-mono font-bold px-1.5 py-0.5 rounded border border-[#00E676]/30">
+                          <span className="text-[10px] bg-[#FF6B1A]/20 text-[#FF6B1A] font-mono font-bold px-1.5 py-0.5 rounded border border-[#FF6B1A]/30">
                             ⚽ {player.gols}
                           </span>
                         )}
@@ -449,8 +485,8 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
               </div>
 
               {/* Visitante Roster */}
-              <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-4 space-y-3">
-                <div className="flex items-center space-x-2 pb-2 border-b border-[#2D3139]">
+              <div className="bg-[#161920] border border-[#262933] rounded-2xl p-4 space-y-3">
+                <div className="flex items-center space-x-2 pb-2 border-b border-[#262933]">
                   <div
                     className="w-3.5 h-3.5 rounded-full border border-white/20"
                     style={{ backgroundColor: match.time_visitante_cor }}
@@ -465,12 +501,12 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                       onClick={() => setSelectedPlayer({ player, teamId: match.time_visitante_id })}
                       className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                         selectedPlayer?.player.id === player.id
-                          ? 'bg-[#00E676]/20 border-[#00E676] text-white shadow-[0_0_10px_rgba(0,230,118,0.2)]'
-                          : 'bg-[#0F1115] border-[#2D3139] hover:border-[#3D424D] text-[#E0E6ED]'
+                          ? 'bg-[#FF6B1A]/20 border-[#FF6B1A] text-white shadow-[0_0_10px_rgba(255,107,26,0.2)]'
+                          : 'bg-[#0F1115] border-[#262933] hover:border-[#FF6B1A]/40 text-[#E0E6ED]'
                       }`}
                     >
                       <div className="flex items-center space-x-2">
-                        <span className="w-5 h-5 bg-[#2D3139] text-[#00E676] font-mono font-bold text-[10px] rounded flex items-center justify-center">
+                        <span className="w-5 h-5 bg-[#161920] text-[#FF6B1A] font-mono font-bold text-[10px] rounded flex items-center justify-center border border-[#262933]">
                           {player.camisa_posicao}
                         </span>
                         <span className="text-xs font-semibold text-white truncate max-w-[120px] sm:max-w-[140px]">
@@ -481,7 +517,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                       {/* Stats Pills */}
                       <div className="flex items-center space-x-1">
                         {player.gols! > 0 && (
-                          <span className="text-[10px] bg-[#00E676]/20 text-[#00E676] font-mono font-bold px-1.5 py-0.5 rounded border border-[#00E676]/30">
+                          <span className="text-[10px] bg-[#FF6B1A]/20 text-[#FF6B1A] font-mono font-bold px-1.5 py-0.5 rounded border border-[#FF6B1A]/30">
                             ⚽ {player.gols}
                           </span>
                         )}
@@ -513,10 +549,10 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
           <div className="space-y-6">
             
             {/* Quick Action Box for Selected Player */}
-            <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[#2D3139]">
+            <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
                 <h3 className="text-xs font-bold text-[#8E9299] uppercase tracking-widest flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-[#00E676]" />
+                  <Sparkles className="w-4 h-4 text-[#FF6B1A]" />
                   <span>Ação Rápida de Campo</span>
                 </h3>
                 {selectedPlayer && (
@@ -530,19 +566,19 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
               </div>
 
               {!selectedPlayer ? (
-                <div className="bg-[#0F1115] p-6 rounded-xl border border-[#2D3139] text-center">
+                <div className="bg-[#0F1115] p-6 rounded-xl border border-[#262933] text-center">
                   <p className="text-xs text-[#8E9299]">
                     Clique em um jogador na lista para lançar gol ou cartão na súmula.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="bg-[#0F1115] p-3 rounded-xl border border-[#2D3139] flex items-center justify-between">
+                  <div className="bg-[#0F1115] p-3 rounded-xl border border-[#262933] flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-white">{selectedPlayer.player.nome}</p>
                       <p className="text-[10px] text-[#8E9299] font-mono">Posição: Pote #{selectedPlayer.player.camisa_posicao}</p>
                     </div>
-                    <span className="px-2 py-0.5 bg-[#00E676]/20 text-[#00E676] text-[10px] font-mono font-bold rounded">
+                    <span className="px-2 py-0.5 bg-[#FF6B1A]/20 text-[#FF6B1A] text-[10px] font-mono font-bold rounded border border-[#FF6B1A]/30">
                       Selecionado
                     </span>
                   </div>
@@ -551,7 +587,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                     {/* Gol */}
                     <button
                       onClick={() => handleRegisterEvent('GOL')}
-                      className="p-3 bg-[#00E676]/20 hover:bg-[#00E676] text-[#00E676] hover:text-black border border-[#00E676]/40 rounded-xl text-xs font-bold flex flex-col items-center space-y-1 transition-all uppercase tracking-wider"
+                      className="p-3 bg-[#FF6B1A]/20 hover:bg-[#FF6B1A] text-[#FF6B1A] hover:text-black border border-[#FF6B1A]/40 rounded-xl text-xs font-bold flex flex-col items-center space-y-1 transition-all uppercase tracking-wider"
                     >
                       <span className="text-lg">⚽</span>
                       <span>+ Gol</span>
@@ -589,8 +625,8 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
             </div>
 
             {/* Event Log Timeline */}
-            <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-3">
-              <h3 className="text-xs font-bold text-[#8E9299] uppercase tracking-widest border-b border-[#2D3139] pb-2">
+            <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-3">
+              <h3 className="text-xs font-bold text-[#8E9299] uppercase tracking-widest border-b border-[#262933] pb-2">
                 Linha do Tempo de Eventos ({events.length})
               </h3>
 
@@ -601,10 +637,10 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                   {events.map((ev) => (
                     <div
                       key={ev.id}
-                      className="p-2.5 bg-[#0F1115] border border-[#2D3139] rounded-xl flex items-center justify-between text-xs"
+                      className="p-2.5 bg-[#0F1115] border border-[#262933] rounded-xl flex items-center justify-between text-xs"
                     >
                       <div className="flex items-center space-x-2.5">
-                        <span className="font-mono text-[#00E676] text-[11px] font-bold">
+                        <span className="font-mono text-[#FF6B1A] text-[11px] font-bold">
                           {ev.minuto_jogo}'
                         </span>
                         <div
@@ -640,6 +676,107 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
           </div>
 
+        </div>
+      )}
+
+      {/* Finalize Confirmation Modal */}
+      {isFinalizeModalOpen && match && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-lg bg-[#161920] border border-[#262933] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-[#FF6B1A]/10 border border-[#FF6B1A]/30 rounded-2xl">
+                  <CheckCircle className="w-6 h-6 text-[#FF6B1A]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                    Finalizar Partida #{match.id}
+                  </h3>
+                  <p className="text-xs text-[#8E9299]">
+                    Processamento automático de pontos, saldo de gols e suspensões
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsFinalizeModalOpen(false)}
+                className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] rounded-xl border border-[#262933]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Match Scoreboard Summary */}
+            <div className="bg-[#0F1115] border border-[#262933] rounded-2xl p-4 flex items-center justify-around text-center">
+              <div>
+                <span className="text-[10px] text-[#8E9299] font-mono uppercase font-bold block">Mandante</span>
+                <span className="text-base font-bold text-white max-w-[120px] truncate block">
+                  {match.time_mandante_nome}
+                </span>
+                <span className="text-3xl font-black font-mono text-[#FF6B1A]">{match.gols_mandante}</span>
+              </div>
+
+              <div className="text-xs font-mono font-bold text-[#8E9299] uppercase px-2 py-1 bg-[#161920] rounded-lg border border-[#262933]">
+                X
+              </div>
+
+              <div>
+                <span className="text-[10px] text-[#8E9299] font-mono uppercase font-bold block">Visitante</span>
+                <span className="text-base font-bold text-white max-w-[120px] truncate block">
+                  {match.time_visitante_nome}
+                </span>
+                <span className="text-3xl font-black font-mono text-[#FF6B1A]">{match.gols_visitante}</span>
+              </div>
+            </div>
+
+            {/* Checklist of updates */}
+            <div className="space-y-2 text-xs text-[#E0E6ED] bg-[#0F1115]/50 border border-[#262933] p-4 rounded-2xl">
+              <span className="text-[11px] font-mono font-bold uppercase text-[#FF6B1A] tracking-wider block mb-2">
+                O que acontecerá ao confirmar:
+              </span>
+              <div className="flex items-start space-x-2">
+                <span className="text-[#FF6B1A] font-bold">✓</span>
+                <span>O status da partida mudará para <strong className="text-white font-mono">FINALIZADO</strong>.</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="text-[#FF6B1A] font-bold">✓</span>
+                <span>Tabela de Classificação será atualizada com os pontos (Vitória: 3, Empate: 1) e saldo de gols.</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="text-[#FF6B1A] font-bold">✓</span>
+                <span>Ranking de Artilharia e destaques serão consolidados.</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="text-[#FF6B1A] font-bold">✓</span>
+                <span>Suspensões por acúmulo de cartões amarelos e cartões vermelhos diretos serão geradas.</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <button
+                onClick={() => setIsFinalizeModalOpen(false)}
+                disabled={isFinalizingLoading}
+                className="w-full sm:w-1/2 py-3 bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] font-mono text-xs uppercase font-bold rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmAndFinalizeMatch}
+                disabled={isFinalizingLoading}
+                className="w-full sm:w-1/2 py-3 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-mono text-xs uppercase font-black tracking-wider rounded-xl transition-all shadow-[0_0_20px_rgba(255,107,26,0.3)] flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                {isFinalizingLoading ? (
+                  <span>Processando...</span>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Confirmar e Finalizar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -126,24 +126,24 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
   return (
     <div className="space-y-6">
       {/* Header Tabs */}
-      <div className="flex flex-wrap gap-2 bg-[#16191F] p-2 rounded-2xl border border-[#2D3139]">
+      <div className="flex overflow-x-auto scrollbar-none gap-2 bg-[#161920] p-2 rounded-2xl border border-[#262933]">
         <button
           onClick={() => setActiveTab('classificacao')}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
             activeTab === 'classificacao'
-              ? 'bg-[#00E676] text-black shadow-[0_0_15px_rgba(0,230,118,0.3)]'
+              ? 'bg-[#FF6B1A] text-black shadow-[0_0_15px_rgba(255,107,26,0.3)]'
               : 'text-[#8E9299] hover:text-white'
           }`}
         >
           <Trophy className="w-4 h-4" />
-          <span>Classificação Geral</span>
+          <span>Classificação</span>
         </button>
 
         <button
           onClick={() => setActiveTab('artilharia')}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
             activeTab === 'artilharia'
-              ? 'bg-[#00E676] text-black shadow-[0_0_15px_rgba(0,230,118,0.3)]'
+              ? 'bg-[#FF6B1A] text-black shadow-[0_0_15px_rgba(255,107,26,0.3)]'
               : 'text-[#8E9299] hover:text-white'
           }`}
         >
@@ -153,33 +153,33 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
 
         <button
           onClick={() => setActiveTab('suspensoes')}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
             activeTab === 'suspensoes'
               ? 'bg-[#FF1744] text-white shadow-[0_0_15px_rgba(255,23,68,0.3)]'
               : 'text-[#8E9299] hover:text-white'
           }`}
         >
           <AlertTriangle className="w-4 h-4 text-[#FF1744]" />
-          <span>Suspensões automáticas ({suspensoes.length})</span>
+          <span>Suspensões ({suspensoes.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('destaques')}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
             activeTab === 'destaques'
               ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]'
               : 'text-[#8E9299] hover:text-white'
           }`}
         >
           <Award className="w-4 h-4 text-purple-300" />
-          <span>Craques do Campeonato</span>
+          <span>Craques</span>
         </button>
       </div>
 
       {/* Tab: Classificação Table */}
       {activeTab === 'classificacao' && (
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl overflow-hidden shadow-2xl">
-          <div className="p-4 border-b border-[#2D3139] flex items-center justify-between">
+        <div className="bg-[#161920] border border-[#262933] rounded-2xl overflow-hidden shadow-2xl">
+          <div className="p-4 border-b border-[#262933] flex items-center justify-between">
             <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
               <Trophy className="w-4 h-4 text-[#FFC400]" />
               <span>Tabela da Fase de Grupos</span>
@@ -189,11 +189,11 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
-              <thead className="bg-[#0F1115] text-[#8E9299] uppercase font-bold border-b border-[#2D3139] text-[10px] tracking-wider">
+              <thead className="bg-[#0F1115] text-[#8E9299] uppercase font-bold border-b border-[#262933] text-[10px] tracking-wider">
                 <tr>
                   <th className="py-3 px-4">Pos</th>
                   <th className="py-3 px-4 font-sans">Time</th>
-                  <th className="py-3 px-3 text-center text-[#00E676] font-bold">P</th>
+                  <th className="py-3 px-3 text-center text-[#FF6B1A] font-bold">P</th>
                   <th className="py-3 px-3 text-center">J</th>
                   <th className="py-3 px-3 text-center">V</th>
                   <th className="py-3 px-3 text-center">E</th>
@@ -204,7 +204,7 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
                   <th className="py-3 px-3 text-center">%</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#2D3139]">
+              <tbody className="divide-y divide-[#262933]">
                 {standings.map((st, idx) => (
                   <tr key={st.time_id} className="hover:bg-[#0F1115]/50 transition-colors">
                     <td className="py-3 px-4 font-black text-[#8E9299]">
@@ -225,7 +225,7 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
                         <span className="truncate max-w-[160px] uppercase">{st.time_nome}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-center font-black text-sm text-[#00E676]">{st.pontos}</td>
+                    <td className="py-3 px-3 text-center font-black text-sm text-[#FF6B1A]">{st.pontos}</td>
                     <td className="py-3 px-3 text-center font-bold text-[#E0E6ED]">{st.jogos}</td>
                     <td className="py-3 px-3 text-center text-[#8E9299]">{st.vitorias}</td>
                     <td className="py-3 px-3 text-center text-[#8E9299]">{st.empates}</td>
@@ -244,7 +244,7 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
 
       {/* Tab: Artilharia */}
       {activeTab === 'artilharia' && (
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-4 shadow-xl">
+        <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4 shadow-xl">
           <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
             <Flame className="w-4 h-4 text-[#FFC400]" />
             <span>Ranking de Artilheiros da Categoria</span>
@@ -257,10 +257,10 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
               {artilharia.map((art, idx) => (
                 <div
                   key={art.jogador_id}
-                  className="bg-[#0F1115] p-4 rounded-xl border border-[#2D3139] flex items-center justify-between"
+                  className="bg-[#0F1115] p-4 rounded-xl border border-[#262933] flex items-center justify-between"
                 >
                   <div className="flex items-center space-x-3">
-                    <span className="w-7 h-7 bg-[#2D3139] text-[#FFC400] font-mono font-black text-xs rounded-lg flex items-center justify-center">
+                    <span className="w-7 h-7 bg-[#161920] text-[#FFC400] font-mono font-black text-xs rounded-lg flex items-center justify-center border border-[#262933]">
                       {idx + 1}º
                     </span>
                     <div>
@@ -269,7 +269,7 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
                     </div>
                   </div>
 
-                  <div className="bg-[#00E676]/10 border border-[#00E676]/30 text-[#00E676] px-3 py-1 rounded-xl font-mono font-black text-xs">
+                  <div className="bg-[#FF6B1A]/10 border border-[#FF6B1A]/30 text-[#FF6B1A] px-3 py-1 rounded-xl font-mono font-black text-xs">
                     {art.gols} Gols ⚽
                   </div>
                 </div>
@@ -281,7 +281,7 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
 
       {/* Tab: Suspensões */}
       {activeTab === 'suspensoes' && (
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-4 shadow-xl">
+        <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4 shadow-xl">
           <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
             <AlertTriangle className="w-4 h-4 text-[#FF1744]" />
             <span>Punições e Suspensões Automáticas</span>
@@ -318,7 +318,7 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
 
       {/* Tab: Destaques */}
       {activeTab === 'destaques' && (
-        <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-4 shadow-xl">
+        <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4 shadow-xl">
           <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
             <Award className="w-4 h-4 text-purple-400" />
             <span>Craques da Rodada / Eleição da Galera</span>

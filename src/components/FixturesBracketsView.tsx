@@ -64,17 +64,14 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   };
 
   const handleGenerateGroupStage = async () => {
-    if (confirm('Deseja realmente gerar a tabela da Fase de Grupos? Isso substituirá os jogos atuais da categoria.')) {
-      try {
-        setLoading(true);
-        const summary = await generateGroupStageFixtures(categoriaId);
-        await loadFixturesData();
-        alert(`Sucesso! ${summary.total_partidas} partidas geradas em ${summary.rodadas_criadas} rodadas.`);
-      } catch (e: any) {
-        alert(e.message || 'Erro ao gerar jogos.');
-      } finally {
-        setLoading(false);
-      }
+    try {
+      setLoading(true);
+      await generateGroupStageFixtures(categoriaId);
+      await loadFixturesData();
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -84,9 +81,8 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
       await generatePlayoffs(categoriaId);
       await loadFixturesData();
       setActiveSubTab('playoffs');
-      alert('Chaveamento do Mata-Mata gerado com base na classificação atual!');
     } catch (e: any) {
-      alert(e.message || 'Erro ao gerar mata-mata.');
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -102,10 +98,10 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner & Tab Controls */}
-      <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
         <div>
           <div className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-[#00E676]" />
+            <Calendar className="w-5 h-5 text-[#FF6B1A]" />
             <h2 className="text-xl font-black text-white uppercase tracking-tight">Gerador de Confrontos & Mata-Mata</h2>
           </div>
           <p className="text-xs text-[#8E9299] mt-1 max-w-xl">
@@ -117,7 +113,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
           <button
             onClick={handleGenerateGroupStage}
             disabled={loading}
-            className="px-4 py-2.5 bg-[#2D3139] hover:bg-[#3D424D] text-[#E0E6ED] rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5"
+            className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Gerar Fase de Grupos</span>
@@ -126,7 +122,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
           <button
             onClick={handleGeneratePlayoffs}
             disabled={loading}
-            className="px-5 py-2.5 bg-[#00E676] hover:bg-[#00c853] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,230,118,0.3)] transition-all flex items-center space-x-1.5"
+            className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-1.5"
           >
             <Trophy className="w-4 h-4" />
             <span>Gerar Mata-Mata</span>
@@ -135,12 +131,12 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
       </div>
 
       {/* Subtab Toggle */}
-      <div className="flex space-x-2 bg-[#0F1115] p-1.5 rounded-2xl border border-[#2D3139] w-fit">
+      <div className="flex overflow-x-auto scrollbar-none space-x-2 bg-[#0F1115] p-1.5 rounded-2xl border border-[#262933] w-full sm:w-fit">
         <button
           onClick={() => setActiveSubTab('grupos')}
-          className={`px-4 py-2 rounded-xl text-xs font-mono font-extrabold uppercase tracking-wider transition-all ${
+          className={`px-4 py-2 rounded-xl text-xs font-mono font-extrabold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
             activeSubTab === 'grupos'
-              ? 'bg-[#00E676] text-black shadow-[0_0_10px_rgba(0,230,118,0.3)]'
+              ? 'bg-[#FF6B1A] text-black shadow-[0_0_10px_rgba(255,107,26,0.3)]'
               : 'text-[#8E9299] hover:text-white'
           }`}
         >
@@ -149,9 +145,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
 
         <button
           onClick={() => setActiveSubTab('playoffs')}
-          className={`px-4 py-2 rounded-xl text-xs font-mono font-extrabold uppercase tracking-wider transition-all ${
+          className={`px-4 py-2 rounded-xl text-xs font-mono font-extrabold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
             activeSubTab === 'playoffs'
-              ? 'bg-[#00E676] text-black shadow-[0_0_10px_rgba(0,230,118,0.3)]'
+              ? 'bg-[#FF6B1A] text-black shadow-[0_0_10px_rgba(255,107,26,0.3)]'
               : 'text-[#8E9299] hover:text-white'
           }`}
         >
@@ -163,7 +159,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
       {activeSubTab === 'grupos' && (
         <div className="space-y-6">
           {Object.keys(matchesByRound).length === 0 ? (
-            <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-10 text-center space-y-3">
+            <div className="bg-[#161920] border border-[#262933] rounded-2xl p-10 text-center space-y-3">
               <AlertCircle className="w-10 h-10 text-[#8E9299] mx-auto" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Nenhum confronto criado na Fase de Grupos</h3>
               <p className="text-xs text-[#8E9299] max-w-md mx-auto">
@@ -172,9 +168,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
             </div>
           ) : (
             Object.entries(matchesByRound).map(([roundNum, roundMatches]) => (
-              <div key={roundNum} className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-[#2D3139]">
-                  <h3 className="text-xs font-bold text-[#00E676] font-mono uppercase tracking-widest flex items-center space-x-2">
+              <div key={roundNum} className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
+                  <h3 className="text-xs font-bold text-[#FF6B1A] font-mono uppercase tracking-widest flex items-center space-x-2">
                     <span>Rodada {roundNum}</span>
                     <span className="text-[#8E9299] font-normal text-xs">({roundMatches.length} partidas)</span>
                   </h3>
@@ -184,7 +180,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                   {roundMatches.map((m) => (
                     <div
                       key={m.id}
-                      className="bg-[#0F1115] p-4 rounded-xl border border-[#2D3139] hover:border-[#00E676]/40 transition-all flex items-center justify-between gap-3"
+                      className="bg-[#0F1115] p-4 rounded-xl border border-[#262933] hover:border-[#FF6B1A]/40 transition-all flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center space-x-3 flex-1">
                         {/* Mandante */}
@@ -197,7 +193,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                         </div>
 
                         {/* Placar */}
-                        <div className="bg-[#16191F] px-3 py-1 rounded-lg border border-[#2D3139] font-mono font-black text-xs text-white">
+                        <div className="bg-[#161920] px-3 py-1 rounded-lg border border-[#262933] font-mono font-black text-xs text-white">
                           {m.gols_mandante} x {m.gols_visitante}
                         </div>
 
@@ -213,7 +209,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
 
                       <button
                         onClick={() => onNavigateToMatch(m.id)}
-                        className="p-2 bg-[#2D3139] hover:bg-[#00E676] text-[#E0E6ED] hover:text-black rounded-lg transition-colors"
+                        className="p-2 bg-[#161920] hover:bg-[#FF6B1A] text-[#E0E6ED] hover:text-black border border-[#262933] hover:border-[#FF6B1A] rounded-lg transition-colors"
                         title="Abrir Súmula Digital"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
@@ -231,7 +227,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
       {activeSubTab === 'playoffs' && (
         <div className="space-y-6">
           {playoffMatches.length === 0 ? (
-            <div className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-10 text-center space-y-3">
+            <div className="bg-[#161920] border border-[#262933] rounded-2xl p-10 text-center space-y-3">
               <Trophy className="w-10 h-10 text-[#8E9299] mx-auto" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Nenhum mata-mata gerado ainda</h3>
               <p className="text-xs text-[#8E9299] max-w-md mx-auto">
@@ -241,20 +237,20 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {playoffMatches.map((m) => (
-                <div key={m.id} className="bg-[#16191F] border border-[#2D3139] rounded-2xl p-5 space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#2D3139]">
-                    <span className="text-xs font-mono font-bold text-[#00E676] uppercase tracking-wider">{m.fase_nome}</span>
-                    <span className="text-[10px] font-mono text-[#8E9299] font-bold bg-[#0F1115] px-2 py-0.5 rounded border border-[#2D3139]">
+                <div key={m.id} className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
+                    <span className="text-xs font-mono font-bold text-[#FF6B1A] uppercase tracking-wider">{m.fase_nome}</span>
+                    <span className="text-[10px] font-mono text-[#8E9299] font-bold bg-[#0F1115] px-2 py-0.5 rounded border border-[#262933]">
                       {m.status}
                     </span>
                   </div>
 
-                  <div className="bg-[#0F1115] p-4 rounded-xl border border-[#2D3139] text-center space-y-3">
+                  <div className="bg-[#0F1115] p-4 rounded-xl border border-[#262933] text-center space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-white truncate max-w-[100px]">
                         {m.time_mandante_nome}
                       </span>
-                      <span className="text-lg font-mono font-black text-[#00E676]">{m.gols_mandante}</span>
+                      <span className="text-lg font-mono font-black text-[#FF6B1A]">{m.gols_mandante}</span>
                     </div>
 
                     <div className="text-[10px] text-[#8E9299] font-mono font-bold uppercase tracking-widest">VS</div>
@@ -263,13 +259,13 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                       <span className="text-xs font-bold text-white truncate max-w-[100px]">
                         {m.time_visitante_nome}
                       </span>
-                      <span className="text-lg font-mono font-black text-[#00E676]">{m.gols_visitante}</span>
+                      <span className="text-lg font-mono font-black text-[#FF6B1A]">{m.gols_visitante}</span>
                     </div>
                   </div>
 
                   <button
                     onClick={() => onNavigateToMatch(m.id)}
-                    className="w-full py-2 bg-[#2D3139] hover:bg-[#00E676] text-[#E0E6ED] hover:text-black rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-1.5"
+                    className="w-full py-2 bg-[#0F1115] hover:bg-[#FF6B1A] text-[#E0E6ED] hover:text-black border border-[#262933] hover:border-[#FF6B1A] rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-1.5"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Súmula Digital</span>

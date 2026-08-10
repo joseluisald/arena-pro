@@ -2,31 +2,27 @@
 
 @layer base {
   body {
-    background-color: #0F1115;
-    color: #E0E6ED;
+    background-color: #1A0305;
+    color: #F5E6E8;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
 }
 
 /* Custom glow utility classes */
-.glow-neon-sm {
-  box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+.glow-orange-sm {
+  box-shadow: 0 0 10px rgba(255, 107, 26, 0.3);
 }
 
-.glow-neon {
-  box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+.glow-orange {
+  box-shadow: 0 0 15px rgba(255, 107, 26, 0.45);
 }
 
-.glow-neon-lg {
-  box-shadow: 0 0 25px rgba(0, 230, 118, 0.5);
+.glow-orange-lg {
+  box-shadow: 0 0 25px rgba(255, 107, 26, 0.6);
 }
 
-.glow-red {
-  box-shadow: 0 0 15px rgba(255, 23, 68, 0.4);
-}
-
-.glow-amber {
-  box-shadow: 0 0 15px rgba(255, 196, 0, 0.4);
+.glow-wine {
+  box-shadow: 0 0 15px rgba(139, 26, 36, 0.5);
 }
 
 /* Custom scrollbars */
@@ -36,14 +32,15 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0F1115;
+  background: #1A0305;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2D3139;
+  background: #5A1218;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #00E676;
+  background: #FF6B1A;
 }
+

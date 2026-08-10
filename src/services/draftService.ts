@@ -51,14 +51,14 @@ export async function executeDraft(categoria_id: number): Promise<DraftSummary> 
     throw new Error('Nenhum time cadastrado nesta categoria para realizar o sorteio.');
   }
 
-  // 3. Fetch all players for this category
+  // 3. Fetch paid players for this category (pago = 1)
   const jogadores = await query<Jogador>(
-    'SELECT id, nome, camisa_posicao FROM jogadores WHERE categoria_id = ? ORDER BY camisa_posicao ASC, id ASC;',
+    'SELECT id, nome, camisa_posicao, pago FROM jogadores WHERE categoria_id = ? AND pago = 1 ORDER BY camisa_posicao ASC, id ASC;',
     [categoria_id]
   );
 
   if (jogadores.length === 0) {
-    throw new Error('Nenhum jogador cadastrado nesta categoria para o sorteio.');
+    throw new Error('Nenhum jogador com inscrição PAGA encontrado nesta categoria. Apenas atletas com pagamento confirmado entram no sorteio.');
   }
 
   // Group players by camisa_posicao (pote)
