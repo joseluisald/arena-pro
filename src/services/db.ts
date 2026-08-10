@@ -167,6 +167,7 @@ export async function initDatabaseSchema(db: Database) {
         brasao_path TEXT,
         cor_hex TEXT DEFAULT '#000000',
         categoria_id INTEGER NOT NULL,
+        grupo TEXT DEFAULT 'A',
         FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
     );
 
@@ -201,10 +202,11 @@ export async function initDatabaseSchema(db: Database) {
         status TEXT DEFAULT 'AGENDADO',
         tempo_decorrido_segundos INTEGER DEFAULT 0,
         rodada INTEGER DEFAULT 1,
+        grupo TEXT DEFAULT NULL,
         FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE,
-        FOREIGN KEY (fase_id) REFERENCES fases(id),
-        FOREIGN KEY (time_mandante_id) REFERENCES times(id),
-        FOREIGN KEY (time_visitante_id) REFERENCES times(id)
+        FOREIGN KEY (fase_id) REFERENCES fases(id) ON DELETE CASCADE,
+        FOREIGN KEY (time_mandante_id) REFERENCES times(id) ON DELETE CASCADE,
+        FOREIGN KEY (time_visitante_id) REFERENCES times(id) ON DELETE CASCADE
     );
 
     -- 7. EVENTOS DO JOGO (Súmula Digital)
@@ -216,8 +218,8 @@ export async function initDatabaseSchema(db: Database) {
         tipo_evento TEXT NOT NULL,
         minuto_jogo INTEGER NOT NULL,
         FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
-        FOREIGN KEY (time_id) REFERENCES times(id),
-        FOREIGN KEY (jogador_id) REFERENCES jogadores(id)
+        FOREIGN KEY (time_id) REFERENCES times(id) ON DELETE CASCADE,
+        FOREIGN KEY (jogador_id) REFERENCES jogadores(id) ON DELETE CASCADE
     );
 
     -- 8. SUSPENSÕES E PUNIÇÕES
@@ -229,7 +231,7 @@ export async function initDatabaseSchema(db: Database) {
         jogos_cumpridos INTEGER DEFAULT 0,
         motivo TEXT,
         FOREIGN KEY (jogador_id) REFERENCES jogadores(id) ON DELETE CASCADE,
-        FOREIGN KEY (partida_origem_id) REFERENCES partidas(id)
+        FOREIGN KEY (partida_origem_id) REFERENCES partidas(id) ON DELETE CASCADE
     );
 
     -- INDEXES for fast querying
@@ -260,6 +262,17 @@ export async function initDatabaseSchema(db: Database) {
   `;
 
   db.exec(schemaSQL);
+
+  try {
+    db.exec("ALTER TABLE times ADD COLUMN grupo TEXT DEFAULT 'A';");
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE partidas ADD COLUMN grupo TEXT DEFAULT NULL;");
+  } catch (e) {
+    // Column already exists
+  }
 }
 
 /**
@@ -361,9 +374,22 @@ export async function updateCategoria(id: number, nome: string): Promise<void> {
 }
 
 export async function deleteCategoria(id: number): Promise<void> {
-  // SQLite handles CASCADE deletion for teams/players/matches if foreign keys are ON
-  await runQuery('DELETE FROM categorias WHERE id = ?;', [id]);
-  persistDatabase();
+  const db = await getDb();
+  db.run('BEGIN TRANSACTION;');
+  try {
+    db.run(`DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
+    db.run(`DELETE FROM eventos_partida WHERE partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
+    db.run(`DELETE FROM partidas WHERE categoria_id = ?;`, [id]);
+    db.run(`DELETE FROM jogadores WHERE categoria_id = ?;`, [id]);
+    db.run(`DELETE FROM times WHERE categoria_id = ?;`, [id]);
+    db.run(`DELETE FROM configuracoes_categoria WHERE categoria_id = ?;`, [id]);
+    db.run(`DELETE FROM categorias WHERE id = ?;`, [id]);
+    db.run('COMMIT;');
+    persistDatabase();
+  } catch (e) {
+    db.run('ROLLBACK;');
+    throw e;
+  }
 }
 
 /**

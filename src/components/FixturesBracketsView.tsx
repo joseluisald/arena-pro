@@ -4,14 +4,19 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Partida } from '../types';
+import { Partida, Jogador } from '../types';
 import { generateGroupStageFixtures, generatePlayoffs } from '../services/fixtureService';
 import { query } from '../services/db';
-import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight } from 'lucide-react';
+import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Printer, Layers, X, Shield } from 'lucide-react';
 
 interface FixturesBracketsViewProps {
   categoriaId: number;
   onNavigateToMatch: (matchId: number) => void;
+}
+
+interface PrintableMatch extends Partida {
+  mandante_jogadores?: Jogador[];
+  visitante_jogadores?: Jogador[];
 }
 
 export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
@@ -22,6 +27,14 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   const [matches, setMatches] = useState<Partida[]>([]);
   const [playoffMatches, setPlayoffMatches] = useState<Partida[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Draw Format State
+  const [drawFormat, setDrawFormat] = useState<'UNICO' | 'DUAS_CHAVES'>('UNICO');
+
+  // Print Fixtures Modal
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printableMatches, setPrintableMatches] = useState<PrintableMatch[]>([]);
+  const [loadingPrintData, setLoadingPrintData] = useState(false);
 
   useEffect(() => {
     loadFixturesData();
@@ -66,12 +79,45 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   const handleGenerateGroupStage = async () => {
     try {
       setLoading(true);
-      await generateGroupStageFixtures(categoriaId);
+      await generateGroupStageFixtures(categoriaId, drawFormat);
       await loadFixturesData();
     } catch (e: any) {
+      alert(e.message || 'Erro ao gerar rodadas.');
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenPrintModal = async () => {
+    setLoadingPrintData(true);
+    setShowPrintModal(true);
+
+    try {
+      const allPlayers = await query<Jogador>(
+        `SELECT j.*, t.nome as time_nome FROM jogadores j JOIN times t ON j.time_id = t.id WHERE t.categoria_id = ?;`,
+        [categoriaId]
+      );
+
+      const playersByTeam: Record<number, Jogador[]> = {};
+      allPlayers.forEach((p) => {
+        if (p.time_id) {
+          if (!playersByTeam[p.time_id]) playersByTeam[p.time_id] = [];
+          playersByTeam[p.time_id].push(p);
+        }
+      });
+
+      const enriched: PrintableMatch[] = matches.map((m) => ({
+        ...m,
+        mandante_jogadores: playersByTeam[m.time_mandante_id] || [],
+        visitante_jogadores: playersByTeam[m.time_visitante_id] || [],
+      }));
+
+      setPrintableMatches(enriched);
+    } catch (err) {
+      console.error('Erro ao carregar dados para impressão:', err);
+    } finally {
+      setLoadingPrintData(false);
     }
   };
 
@@ -97,36 +143,78 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Tab Controls */}
-      <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-        <div>
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-[#FF6B1A]" />
-            <h2 className="text-xl font-black text-white uppercase tracking-tight">Gerador de Confrontos & Mata-Mata</h2>
+      {/* Top Banner & Controls */}
+      <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-[#FF6B1A]" />
+              <h2 className="text-xl font-black text-white uppercase tracking-tight">Gerador de Confrontos & Mata-Mata</h2>
+            </div>
+            <p className="text-xs text-[#8E9299] mt-1 max-w-xl">
+              Geração de tabela em formato Único (Todos contra Todos) ou Duas Chaves (Grupo A e Grupo B) com impressão detalhada das escalações.
+            </p>
           </div>
-          <p className="text-xs text-[#8E9299] mt-1 max-w-xl">
-            Criação de tabela "todos contra todos" na fase de grupos (Algoritmo de Berger) e classificação flexível para Repescagem, Quartas, Semifinal e Final.
-          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleOpenPrintModal}
+              className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#FF6B1A] border border-[#262933] hover:border-[#FF6B1A]/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5"
+            >
+              <Printer className="w-4 h-4 text-[#FF6B1A]" />
+              <span>Imprimir Confrontos</span>
+            </button>
+
+            <button
+              onClick={handleGenerateGroupStage}
+              disabled={loading}
+              className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Gerar Fase de Grupos</span>
+            </button>
+
+            <button
+              onClick={handleGeneratePlayoffs}
+              disabled={loading}
+              className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-1.5"
+            >
+              <Trophy className="w-4 h-4" />
+              <span>Gerar Mata-Mata</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleGenerateGroupStage}
-            disabled={loading}
-            className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Gerar Fase de Grupos</span>
-          </button>
+        {/* Format Selector Bar */}
+        <div className="pt-3 border-t border-[#262933] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <span className="font-mono text-[#8E9299] uppercase font-bold flex items-center space-x-2">
+            <Layers className="w-4 h-4 text-[#FF6B1A]" />
+            <span>Formato do Sorteio da Fase de Grupos:</span>
+          </span>
 
-          <button
-            onClick={handleGeneratePlayoffs}
-            disabled={loading}
-            className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-1.5"
-          >
-            <Trophy className="w-4 h-4" />
-            <span>Gerar Mata-Mata</span>
-          </button>
+          <div className="flex items-center space-x-2 bg-[#0F1115] p-1 rounded-xl border border-[#262933]">
+            <button
+              onClick={() => setDrawFormat('UNICO')}
+              className={`px-3 py-1.5 rounded-lg font-mono font-bold text-[11px] uppercase transition-all ${
+                drawFormat === 'UNICO'
+                  ? 'bg-[#FF6B1A] text-black shadow-[0_0_10px_rgba(255,107,26,0.3)]'
+                  : 'text-[#8E9299] hover:text-white'
+              }`}
+            >
+              Chave Única (Todos vs Todos)
+            </button>
+
+            <button
+              onClick={() => setDrawFormat('DUAS_CHAVES')}
+              className={`px-3 py-1.5 rounded-lg font-mono font-bold text-[11px] uppercase transition-all ${
+                drawFormat === 'DUAS_CHAVES'
+                  ? 'bg-[#FF6B1A] text-black shadow-[0_0_10px_rgba(255,107,26,0.3)]'
+                  : 'text-[#8E9299] hover:text-white'
+              }`}
+            >
+              Duas Chaves (Grupo A & Grupo B)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -274,6 +362,129 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
               ))}
             </div>
           )}
+        </div>
+      )}
+      {/* Modal Impressão de Confrontos */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-2 sm:p-6 overflow-y-auto print:p-0 print:bg-white print:static print:block">
+          <div className="bg-[#161920] border border-[#262933] rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl print:max-h-none print:overflow-visible print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
+            {/* Modal Header (Non-printable controls) */}
+            <div className="flex items-center justify-between border-b border-[#262933] pb-4 print:hidden">
+              <div className="flex items-center space-x-2">
+                <Printer className="w-5 h-5 text-[#FF6B1A]" />
+                <h3 className="text-base font-black text-white uppercase tracking-tight">Tabela de Confrontos & Escalações</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-[#FF6B1A] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] flex items-center space-x-1.5"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir Folha</span>
+                </button>
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] border border-[#262933] rounded-xl"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {loadingPrintData ? (
+              <div className="p-12 text-center text-xs font-mono text-[#8E9299] animate-pulse">
+                Carregando escalações completas para impressão...
+              </div>
+            ) : (
+              <div className="space-y-8 print:space-y-6">
+                {/* Print Sheet Banner */}
+                <div className="text-center border-b border-[#262933] pb-4 print:border-black print:pb-2">
+                  <div className="flex items-center justify-center space-x-2 mb-1">
+                    <Shield className="w-6 h-6 text-[#FF6B1A] print:text-black" />
+                    <h1 className="text-2xl font-black text-white uppercase tracking-tight print:text-black">ARENA ROMANO SOCIETY</h1>
+                  </div>
+                  <h2 className="text-sm font-bold text-[#FF6B1A] uppercase tracking-widest font-mono print:text-black">
+                    RELATÓRIO OFICIAL DE CONFRONTOS & ESCALAÇÕES DOS TIMES
+                  </h2>
+                </div>
+
+                {/* Fixtures List for Print */}
+                {printableMatches.length === 0 ? (
+                  <p className="text-center text-xs text-[#8E9299] py-8 font-mono">Nenhum confronto disponível para impressão.</p>
+                ) : (
+                  printableMatches.map((m, index) => (
+                    <div
+                      key={m.id}
+                      className="bg-[#0F1115] border border-[#262933] rounded-2xl p-5 space-y-4 print:bg-white print:border-2 print:border-black print:rounded-none print:p-4 print:break-inside-avoid"
+                    >
+                      {/* Match Info Bar */}
+                      <div className="flex items-center justify-between border-b border-[#262933] pb-2 print:border-black">
+                        <span className="text-xs font-black font-mono text-[#FF6B1A] uppercase tracking-wider print:text-black">
+                          Jogo #{index + 1} — Rodada {m.rodada} {m.grupo ? `(Chave / Grupo ${m.grupo})` : ''}
+                        </span>
+                        <span className="text-[10px] font-mono text-[#8E9299] print:text-black font-bold">
+                          Data/Hora: {m.data_hora ? new Date(m.data_hora).toLocaleString('pt-BR') : 'A Definir'}
+                        </span>
+                      </div>
+
+                      {/* Side by side Teams & Players */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Mandante */}
+                        <div className="border-r border-[#262933] pr-4 print:border-black space-y-2">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-xl">{m.time_mandante_brasao || '🛡️'}</span>
+                            <span className="text-sm font-black text-white uppercase print:text-black">{m.time_mandante_nome}</span>
+                            <span className="text-[10px] font-mono text-[#8E9299] print:text-black font-bold">(Mandante)</span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase text-[#8E9299] print:text-black">Atletas Inscritos:</span>
+                            {m.mandante_jogadores && m.mandante_jogadores.length > 0 ? (
+                              <ul className="text-xs font-mono text-[#E0E6ED] print:text-black space-y-1">
+                                {m.mandante_jogadores.map((j) => (
+                                  <li key={j.id} className="flex items-center justify-between bg-[#161920] px-2 py-1 rounded print:bg-gray-100">
+                                    <span className="font-semibold">{j.nome}</span>
+                                    <span className="text-[10px] text-[#8E9299] print:text-black">Pote #{j.camisa_posicao}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-[11px] text-[#8E9299] italic">Nenhum jogador cadastrado neste time.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Visitante */}
+                        <div className="space-y-2 pl-2">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-xl">{m.time_visitante_brasao || '🛡️'}</span>
+                            <span className="text-sm font-black text-white uppercase print:text-black">{m.time_visitante_nome}</span>
+                            <span className="text-[10px] font-mono text-[#8E9299] print:text-black font-bold">(Visitante)</span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-mono font-bold uppercase text-[#8E9299] print:text-black">Atletas Inscritos:</span>
+                            {m.visitante_jogadores && m.visitante_jogadores.length > 0 ? (
+                              <ul className="text-xs font-mono text-[#E0E6ED] print:text-black space-y-1">
+                                {m.visitante_jogadores.map((j) => (
+                                  <li key={j.id} className="flex items-center justify-between bg-[#161920] px-2 py-1 rounded print:bg-gray-100">
+                                    <span className="font-semibold">{j.nome}</span>
+                                    <span className="text-[10px] text-[#8E9299] print:text-black">Pote #{j.camisa_posicao}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-[11px] text-[#8E9299] italic">Nenhum jogador cadastrado neste time.</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

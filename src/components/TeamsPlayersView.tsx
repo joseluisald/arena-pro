@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Jogador, POSICOES_MAP, Time } from '../types';
-import { query, runQuery } from '../services/db';
+import { query, runQuery, getDb, persistDatabase } from '../services/db';
 import { Users, Plus, Shield, CheckCircle, Clock, Trash2, Edit, DollarSign, Filter } from 'lucide-react';
 
 interface TeamsPlayersViewProps {
@@ -27,6 +27,59 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerCamisa, setNewPlayerCamisa] = useState(1);
   const [newPlayerPaid, setNewPlayerPaid] = useState(0);
+
+  // Edit Team & Edit Player States
+  const [editingTeam, setEditingTeam] = useState<Time | null>(null);
+  const [editTeamName, setEditTeamName] = useState('');
+  const [editTeamColor, setEditTeamColor] = useState('#2563EB');
+  const [editTeamBadge, setEditTeamBadge] = useState('🛡️');
+
+  const [editingPlayer, setEditingPlayer] = useState<Jogador | null>(null);
+  const [editPlayerName, setEditPlayerName] = useState('');
+  const [editPlayerCamisa, setEditPlayerCamisa] = useState(1);
+  const [editPlayerTeamId, setEditPlayerTeamId] = useState<number | null>(null);
+  const [editPlayerPaid, setEditPlayerPaid] = useState(0);
+
+  const handleOpenEditTeam = (team: Time) => {
+    setEditingTeam(team);
+    setEditTeamName(team.nome);
+    setEditTeamColor(team.cor_hex || '#2563EB');
+    setEditTeamBadge(team.brasao_path || '🛡️');
+  };
+
+  const handleSaveEditTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeam || !editTeamName.trim()) return;
+
+    await runQuery(
+      `UPDATE times SET nome = ?, brasao_path = ?, cor_hex = ? WHERE id = ?;`,
+      [editTeamName.trim(), editTeamBadge.trim(), editTeamColor, editingTeam.id]
+    );
+
+    setEditingTeam(null);
+    loadData();
+  };
+
+  const handleOpenEditPlayer = (player: Jogador) => {
+    setEditingPlayer(player);
+    setEditPlayerName(player.nome);
+    setEditPlayerCamisa(player.camisa_posicao);
+    setEditPlayerTeamId(player.time_id);
+    setEditPlayerPaid(player.pago);
+  };
+
+  const handleSaveEditPlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPlayer || !editPlayerName.trim()) return;
+
+    await runQuery(
+      `UPDATE jogadores SET nome = ?, camisa_posicao = ?, time_id = ?, pago = ? WHERE id = ?;`,
+      [editPlayerName.trim(), editPlayerCamisa, editPlayerTeamId, editPlayerPaid, editingPlayer.id]
+    );
+
+    setEditingPlayer(null);
+    loadData();
+  };
 
   useEffect(() => {
     loadData();
@@ -70,7 +123,20 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   };
 
   const handleDeleteTeam = async (teamId: number) => {
-    await runQuery('DELETE FROM times WHERE id = ?;', [teamId]);
+    const db = await getDb();
+    db.run('BEGIN TRANSACTION;');
+    try {
+      db.run(`DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?);`, [teamId, teamId]);
+      db.run(`DELETE FROM eventos_partida WHERE time_id = ? OR partida_id IN (SELECT id FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?);`, [teamId, teamId, teamId]);
+      db.run(`DELETE FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?;`, [teamId, teamId]);
+      db.run(`UPDATE jogadores SET time_id = NULL WHERE time_id = ?;`, [teamId]);
+      db.run(`DELETE FROM times WHERE id = ?;`, [teamId]);
+      db.run('COMMIT;');
+      persistDatabase();
+    } catch (e) {
+      db.run('ROLLBACK;');
+      console.error('Erro ao deletar time:', e);
+    }
     loadData();
   };
 
@@ -96,7 +162,18 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   };
 
   const handleDeletePlayer = async (playerId: number) => {
-    await runQuery('DELETE FROM jogadores WHERE id = ?;', [playerId]);
+    const db = await getDb();
+    db.run('BEGIN TRANSACTION;');
+    try {
+      db.run(`DELETE FROM suspensoes WHERE jogador_id = ?;`, [playerId]);
+      db.run(`DELETE FROM eventos_partida WHERE jogador_id = ?;`, [playerId]);
+      db.run(`DELETE FROM jogadores WHERE id = ?;`, [playerId]);
+      db.run('COMMIT;');
+      persistDatabase();
+    } catch (e) {
+      db.run('ROLLBACK;');
+      console.error('Erro ao deletar jogador:', e);
+    }
     loadData();
   };
 
@@ -171,13 +248,22 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteTeam(t.id)}
-                  className="p-2 text-[#8E9299] hover:text-[#FF1744] transition-colors"
-                  title="Excluir time"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => handleOpenEditTeam(t)}
+                    className="p-2 text-[#8E9299] hover:text-[#FF6B1A] transition-colors"
+                    title="Editar nome e brasão do time"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTeam(t.id)}
+                    className="p-2 text-[#8E9299] hover:text-[#FF1744] transition-colors"
+                    title="Excluir time"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -235,12 +321,22 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleDeletePlayer(p.id)}
-                          className="text-[#8E9299] hover:text-[#FF1744] transition-colors p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end space-x-1">
+                          <button
+                            onClick={() => handleOpenEditPlayer(p)}
+                            className="text-[#8E9299] hover:text-[#FF6B1A] transition-colors p-1"
+                            title="Editar jogador e atrelar ao time"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlayer(p.id)}
+                            className="text-[#8E9299] hover:text-[#FF1744] transition-colors p-1"
+                            title="Excluir jogador"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -369,6 +465,145 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                   className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
                 >
                   Salvar Jogador
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Time */}
+      {editingTeam && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <h3 className="text-base font-black text-white uppercase tracking-tight">Editar Time</h3>
+            <form onSubmit={handleSaveEditTeam} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Nome do Time</label>
+                <input
+                  type="text"
+                  required
+                  value={editTeamName}
+                  onChange={(e) => setEditTeamName(e.target.value)}
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Cor Principal</label>
+                  <input
+                    type="color"
+                    value={editTeamColor}
+                    onChange={(e) => setEditTeamColor(e.target.value)}
+                    className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Brasão (Emoji/Ícone)</label>
+                  <input
+                    type="text"
+                    value={editTeamBadge}
+                    onChange={(e) => setEditTeamBadge(e.target.value)}
+                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] text-center font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTeam(null)}
+                  className="px-4 py-2 bg-[#0F1115] text-[#E0E6ED] hover:bg-[#222632] border border-[#262933] rounded-xl font-mono text-xs uppercase"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                >
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Jogador */}
+      {editingPlayer && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <h3 className="text-base font-black text-white uppercase tracking-tight">Editar Atleta</h3>
+            <form onSubmit={handleSaveEditPlayer} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Nome do Jogador</label>
+                <input
+                  type="text"
+                  required
+                  value={editPlayerName}
+                  onChange={(e) => setEditPlayerName(e.target.value)}
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Posição / Pote no Sorteio</label>
+                <select
+                  value={editPlayerCamisa}
+                  onChange={(e) => setEditPlayerCamisa(Number(e.target.value))}
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
+                >
+                  {Object.entries(POSICOES_MAP).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      Pote #{k} - {v.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Time Atribuído</label>
+                <select
+                  value={editPlayerTeamId ?? ''}
+                  onChange={(e) => setEditPlayerTeamId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
+                >
+                  <option value="">Sem time (Livre / Aguardando Draft)</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.brasao_path || '🛡️'} {t.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Status do Pagamento</label>
+                <select
+                  value={editPlayerPaid}
+                  onChange={(e) => setEditPlayerPaid(Number(e.target.value))}
+                  className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
+                >
+                  <option value={1}>Pago (Inscrição Confirmada)</option>
+                  <option value={0}>Pendente</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPlayer(null)}
+                  className="px-4 py-2 bg-[#0F1115] text-[#E0E6ED] hover:bg-[#222632] border border-[#262933] rounded-xl font-mono text-xs uppercase"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                >
+                  Salvar Alterações
                 </button>
               </div>
             </form>

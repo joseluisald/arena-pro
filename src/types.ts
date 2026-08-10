@@ -36,6 +36,7 @@ export interface Time {
   brasao_path?: string;
   cor_hex: string;
   categoria_id: number;
+  grupo?: string; // 'A', 'B', etc.
   jogadores_count?: number;
 }
 
@@ -74,6 +75,7 @@ export interface Partida {
   status: 'AGENDADO' | 'EM_ANDAMENTO' | 'FINALIZADO';
   tempo_decorrido_segundos: number;
   rodada: number;
+  grupo?: string; // 'A', 'B', etc.
   
   // Joined fields for display
   time_mandante_nome?: string;
@@ -123,6 +125,7 @@ export interface ClassificacaoItem {
   time_nome: string;
   time_cor_hex: string;
   time_brasao_path?: string;
+  grupo?: string;
   jogos: number;
   vitorias: number;
   empates: number;

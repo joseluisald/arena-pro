@@ -3,14 +3,60 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { query, getDb } from '../services/db';
-import { Database, CheckCircle, Terminal, Play, ShieldAlert, Code2, Table } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { query, getDb, exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
+import { Database, CheckCircle, Terminal, Play, ShieldAlert, Code2, Table, Download, Upload, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export const SqlSchemaLabView: React.FC = () => {
   const [customSql, setCustomSql] = useState('SELECT * FROM categorias;');
   const [queryResult, setQueryResult] = useState<any[] | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    const blob = await exportSqliteFile();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `torneio_society_backup_${new Date().toISOString().slice(0, 10)}.sqlite`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importSqliteFile(file).then(() => {
+        setResetSuccessMessage('Arquivo .sqlite restaurado com sucesso!');
+        setTimeout(() => window.location.reload(), 1000);
+      });
+    }
+  };
+
+  const confirmResetDatabase = async () => {
+    try {
+      setIsResetting(true);
+      await resetDatabaseToSeed();
+      setIsResetModalOpen(false);
+      setResetSuccessMessage('Banco de dados resetado com sucesso! Dados restaurados para o estado inicial.');
+
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.5 },
+      });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      console.error('Erro ao resetar banco de dados:', err);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const predefinedQueries = [
     { label: 'Usuários (Login)', sql: 'SELECT id, nome, email, role, criado_em FROM usuarios;' },
@@ -42,15 +88,73 @@ export const SqlSchemaLabView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {resetSuccessMessage && (
+        <div className="p-4 bg-[#161920] border border-emerald-500/40 rounded-2xl shadow-2xl flex items-start space-x-3 text-xs text-emerald-400 font-mono">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-1">
+            <span className="font-bold text-white uppercase block">Operação Concluída</span>
+            <p className="text-[#8E9299] text-[11px] leading-relaxed">{resetSuccessMessage}</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 shadow-xl">
         <div className="flex items-center space-x-2 mb-1">
           <Database className="w-5 h-5 text-[#FF6B1A]" />
-          <h2 className="text-xl font-black text-white uppercase tracking-tight">Validação do Esquema SQLite & Console SQL</h2>
+          <h2 className="text-xl font-black text-white uppercase tracking-tight">Ferramentas & Esquema SQLite</h2>
         </div>
         <p className="text-xs text-[#8E9299]">
-          Validação do modelo relacional, triggers para sincronização automática da súmula digital offline e console para execução de queries diretas.
+          Exportação/restauração do arquivo local .sqlite, reset do banco, validação do modelo relacional e console SQL.
         </p>
+      </div>
+
+      {/* Ferramentas SQLite Card */}
+      <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between border-b border-[#262933] pb-3">
+          <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center space-x-2">
+            <Database className="w-4 h-4 text-[#FF6B1A]" />
+            <span>Ferramentas de Banco de Dados SQLite</span>
+          </h3>
+          <span className="text-[10px] font-mono text-[#8E9299] bg-[#0F1115] px-2.5 py-1 rounded-lg border border-[#262933]">
+            Sincronização Local (WASM / SQLite)
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            onClick={handleExport}
+            className="flex items-center justify-center space-x-2 p-4 rounded-xl bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 transition-all font-mono text-xs font-bold"
+          >
+            <Download className="w-4 h-4 text-[#FF6B1A]" />
+            <span>Exportar Backup (.sqlite)</span>
+          </button>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center justify-center space-x-2 p-4 rounded-xl bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 transition-all font-mono text-xs font-bold"
+          >
+            <Upload className="w-4 h-4 text-[#FF6B1A]" />
+            <span>Restaurar Arquivo (.sqlite)</span>
+          </button>
+
+          <button
+            onClick={() => setIsResetModalOpen(true)}
+            className="flex items-center justify-center space-x-2 p-4 rounded-xl bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] border border-[#FF1744]/30 transition-all font-mono text-xs font-bold uppercase"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Resetar Banco de Dados</span>
+          </button>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImport}
+            accept=".sqlite,.db"
+            className="hidden"
+          />
+        </div>
       </div>
 
       {/* Schema Validation Cards */}
@@ -189,6 +293,48 @@ export const SqlSchemaLabView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Reset Confirmation Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-md bg-[#161920] border border-[#262933] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-[#FF1744]/10 border border-[#FF1744]/30 rounded-2xl">
+                  <AlertTriangle className="w-6 h-6 text-[#FF1744]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">Resetar Banco de Dados</h3>
+                  <p className="text-[11px] font-mono text-[#8E9299]">Ação Crítica de Reinicialização</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#8E9299] leading-relaxed">
+              Esta ação irá apagar todas as partidas, súmulas, cartões e inscrições de times/jogadores, restaurando o banco SQLite para os dados padrão iniciais. Seu usuário de login será preservado.
+            </p>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmResetDatabase}
+                disabled={isResetting}
+                className="px-5 py-2.5 bg-[#FF1744] hover:bg-red-600 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,23,68,0.4)] flex items-center space-x-2"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+                <span>{isResetting ? 'Resetando...' : 'Confirmar Reset'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

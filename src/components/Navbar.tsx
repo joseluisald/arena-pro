@@ -115,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'classificacao', label: 'Tabela & Artilharia', icon: Trophy, badge: null },
     { id: 'times', label: 'Times & Jogadores', icon: Users, badge: null },
     { id: 'regras', label: 'Regras da Categoria', icon: Settings, badge: null },
-    { id: 'sql-lab', label: 'SQLite & Schema Lab', icon: Database, badge: 'Dev' },
+    { id: 'sql-lab', label: 'Ferramentas & Schema SQLite', icon: Database, badge: 'Dev' },
   ];
 
   const handleSelectTab = (id: string) => {
@@ -316,48 +316,49 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Bottom Section: Database Management Actions */}
+        {/* Bottom Section: User Profile & Quick Database Link */}
         <div className="pt-4 border-t border-[#262933] space-y-3 mt-6">
           <p className="px-1 text-[10px] font-mono font-bold uppercase tracking-widest text-[#8E9299]">
-            Ferramentas SQLite
+            Usuário Autenticado
           </p>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <button
-              onClick={handleExport}
-              title="Exportar backup .sqlite"
-              className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-xl bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] hover:border-[#FF6B1A]/40 transition-all font-mono text-[11px] font-bold"
-            >
-              <Download className="w-3.5 h-3.5 text-[#FF6B1A]" />
-              <span>Exportar</span>
-            </button>
+          <div className="p-3.5 bg-[#0F1115] border border-[#262933] rounded-2xl space-y-2.5 shadow-md">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF6B1A] to-[#FFC400] flex items-center justify-center font-black text-black shrink-0 shadow-[0_0_10px_rgba(255,107,26,0.3)]">
+                <ShieldCheck className="w-5 h-5 text-black" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-white truncate font-sans">Organizador Arena Romano</p>
+                <p className="text-[10px] font-mono text-[#FF6B1A] truncate">jaldrighi@gmail.com</p>
+              </div>
+            </div>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              title="Importar backup .sqlite"
-              className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-xl bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] hover:border-[#FF6B1A]/40 transition-all font-mono text-[11px] font-bold"
-            >
-              <Upload className="w-3.5 h-3.5 text-[#FF6B1A]" />
-              <span>Restaurar</span>
-            </button>
+            <div className="flex items-center justify-between text-[10px] font-mono border-t border-[#262933] pt-2">
+              <span className="px-2 py-0.5 bg-[#FF6B1A]/10 text-[#FF6B1A] rounded border border-[#FF6B1A]/30 font-bold uppercase">
+                ADMIN
+              </span>
+
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => handleSelectTab('sql-lab')}
+                  className="px-2 py-1 bg-[#161920] hover:bg-[#222632] text-[#8E9299] hover:text-white rounded-lg transition-colors flex items-center space-x-1"
+                  title="Abrir Ferramentas SQLite"
+                >
+                  <Database className="w-3 h-3 text-[#FF6B1A]" />
+                  <span>SQLite</span>
+                </button>
+
+                <button
+                  onClick={onLogout}
+                  className="px-2 py-1 bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] rounded-lg transition-colors flex items-center space-x-1 font-bold"
+                  title="Sair do painel admin"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Sair</span>
+                </button>
+              </div>
+            </div>
           </div>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImport}
-            accept=".sqlite,.db"
-            className="hidden"
-          />
-
-          <button
-            onClick={handleResetClick}
-            title="Limpar e resetar dados do torneio"
-            className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] border border-[#FF1744]/30 transition-all font-mono text-[11px] font-extrabold uppercase tracking-wider"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Resetar Banco</span>
-          </button>
         </div>
       </aside>
 

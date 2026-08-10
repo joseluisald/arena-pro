@@ -15,7 +15,10 @@ export interface FixtureSummary {
 /**
  * Generate Round-Robin Group Stage matches (Berger / Circle Method)
  */
-export async function generateGroupStageFixtures(categoria_id: number): Promise<FixtureSummary> {
+export async function generateGroupStageFixtures(
+  categoria_id: number,
+  format: 'UNICO' | 'DUAS_CHAVES' = 'UNICO'
+): Promise<FixtureSummary> {
   const db = await getDb();
 
   // 1. Fetch teams for this category
@@ -28,62 +31,122 @@ export async function generateGroupStageFixtures(categoria_id: number): Promise<
     throw new Error('É necessário ter no mínimo 2 times cadastrados na categoria para gerar os jogos.');
   }
 
+  if (format === 'DUAS_CHAVES' && times.length < 4) {
+    throw new Error('É necessário ter no mínimo 4 times cadastrados para dividir o torneio em Duas Chaves (Grupo A e Grupo B).');
+  }
+
   // Clear existing fixtures for this category in transaction
   db.run('BEGIN TRANSACTION;');
 
   try {
-    // Delete existing events & matches for this category
+    // Delete existing suspensions, events & matches for this category
+    db.run(
+      `DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`,
+      [categoria_id]
+    );
     db.run(
       `DELETE FROM eventos_partida WHERE partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`,
       [categoria_id]
     );
     db.run(`DELETE FROM partidas WHERE categoria_id = ?;`, [categoria_id]);
 
-    let teamList: (number | null)[] = times.map((t) => t.id);
-
-    // If odd number of teams, add a dummy BYE (null) team
-    const isOdd = teamList.length % 2 !== 0;
-    if (isOdd) {
-      teamList.push(null);
-    }
-
-    const totalTeams = teamList.length;
-    const numRounds = totalTeams - 1;
-    const matchesPerRound = totalTeams / 2;
-
     let matchCount = 0;
+    let maxRounds = 0;
     const baseDate = new Date();
 
-    for (let round = 1; round <= numRounds; round++) {
-      for (let matchIdx = 0; matchIdx < matchesPerRound; matchIdx++) {
-        const home = teamList[matchIdx];
-        const away = teamList[totalTeams - 1 - matchIdx];
+    if (format === 'DUAS_CHAVES') {
+      // Split teams evenly into Group A and Group B
+      const half = Math.ceil(times.length / 2);
+      const groupATeams = times.slice(0, half);
+      const groupBTeams = times.slice(half);
 
-        // Skip BYE matches
-        if (home !== null && away !== null) {
-          // Alternate home/away based on round for fairness
-          const isFlipped = (round + matchIdx) % 2 === 0;
-          const mandanteId = isFlipped ? away : home;
-          const visitanteId = isFlipped ? home : away;
-
-          // Schedule date offset by round and match
-          const matchDate = new Date(baseDate.getTime() + (round - 1) * 7 * 86400000 + matchIdx * 3600000);
-          const isoDate = matchDate.toISOString().replace('T', ' ').substring(0, 19);
-
-          db.run(
-            `INSERT INTO partidas 
-             (categoria_id, fase_id, time_mandante_id, time_visitante_id, gols_mandante, gols_visitante, data_hora, status, tempo_decorrido_segundos, rodada)
-             VALUES (?, 1, ?, ?, 0, 0, ?, 'AGENDADO', 0, ?);`,
-            [categoria_id, mandanteId, visitanteId, isoDate, round]
-          );
-
-          matchCount++;
-        }
+      // Update group assignments in DB
+      for (const t of groupATeams) {
+        db.run('UPDATE times SET grupo = ? WHERE id = ?;', ['A', t.id]);
+      }
+      for (const t of groupBTeams) {
+        db.run('UPDATE times SET grupo = ? WHERE id = ?;', ['B', t.id]);
       }
 
-      // Rotate array for next round (keep first team fixed)
-      const lastTeam = teamList.pop()!;
-      teamList.splice(1, 0, lastTeam);
+      // Helper function to generate round-robin for a group
+      const generateForSubGroup = (groupLabel: string, subTimes: Time[]) => {
+        let teamList: (number | null)[] = subTimes.map((t) => t.id);
+        if (teamList.length % 2 !== 0) teamList.push(null); // BYE
+
+        const totalTeams = teamList.length;
+        const numRounds = totalTeams - 1;
+        const matchesPerRound = totalTeams / 2;
+
+        if (numRounds > maxRounds) maxRounds = numRounds;
+
+        for (let round = 1; round <= numRounds; round++) {
+          for (let matchIdx = 0; matchIdx < matchesPerRound; matchIdx++) {
+            const home = teamList[matchIdx];
+            const away = teamList[totalTeams - 1 - matchIdx];
+
+            if (home !== null && away !== null) {
+              const isFlipped = (round + matchIdx) % 2 === 0;
+              const mandanteId = isFlipped ? away : home;
+              const visitanteId = isFlipped ? home : away;
+
+              const matchDate = new Date(baseDate.getTime() + (round - 1) * 7 * 86400000 + matchIdx * 3600000);
+              const isoDate = matchDate.toISOString().replace('T', ' ').substring(0, 19);
+
+              db.run(
+                `INSERT INTO partidas 
+                 (categoria_id, fase_id, time_mandante_id, time_visitante_id, gols_mandante, gols_visitante, data_hora, status, tempo_decorrido_segundos, rodada, grupo)
+                 VALUES (?, 1, ?, ?, 0, 0, ?, 'AGENDADO', 0, ?, ?);`,
+                [categoria_id, mandanteId, visitanteId, isoDate, round, groupLabel]
+              );
+              matchCount++;
+            }
+          }
+          const lastTeam = teamList.pop()!;
+          teamList.splice(1, 0, lastTeam);
+        }
+      };
+
+      generateForSubGroup('A', groupATeams);
+      generateForSubGroup('B', groupBTeams);
+    } else {
+      // UNICO Mode (Single Group)
+      for (const t of times) {
+        db.run('UPDATE times SET grupo = ? WHERE id = ?;', ['A', t.id]);
+      }
+
+      let teamList: (number | null)[] = times.map((t) => t.id);
+      if (teamList.length % 2 !== 0) teamList.push(null);
+
+      const totalTeams = teamList.length;
+      const numRounds = totalTeams - 1;
+      const matchesPerRound = totalTeams / 2;
+      maxRounds = numRounds;
+
+      for (let round = 1; round <= numRounds; round++) {
+        for (let matchIdx = 0; matchIdx < matchesPerRound; matchIdx++) {
+          const home = teamList[matchIdx];
+          const away = teamList[totalTeams - 1 - matchIdx];
+
+          if (home !== null && away !== null) {
+            const isFlipped = (round + matchIdx) % 2 === 0;
+            const mandanteId = isFlipped ? away : home;
+            const visitanteId = isFlipped ? home : away;
+
+            const matchDate = new Date(baseDate.getTime() + (round - 1) * 7 * 86400000 + matchIdx * 3600000);
+            const isoDate = matchDate.toISOString().replace('T', ' ').substring(0, 19);
+
+            db.run(
+              `INSERT INTO partidas 
+               (categoria_id, fase_id, time_mandante_id, time_visitante_id, gols_mandante, gols_visitante, data_hora, status, tempo_decorrido_segundos, rodada, grupo)
+               VALUES (?, 1, ?, ?, 0, 0, ?, 'AGENDADO', 0, ?, 'A');`,
+              [categoria_id, mandanteId, visitanteId, isoDate, round]
+            );
+            matchCount++;
+          }
+        }
+        const lastTeam = teamList.pop()!;
+        teamList.splice(1, 0, lastTeam);
+      }
     }
 
     db.run('COMMIT;');
@@ -92,7 +155,7 @@ export async function generateGroupStageFixtures(categoria_id: number): Promise<
     return {
       categoria_id,
       total_partidas: matchCount,
-      rodadas_criadas: numRounds,
+      rodadas_criadas: maxRounds,
     };
   } catch (err) {
     db.run('ROLLBACK;');
@@ -134,6 +197,10 @@ export async function generatePlayoffs(categoria_id: number): Promise<void> {
 
   try {
     // Delete existing playoff matches for this category
+    db.run(
+      `DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ? AND fase_id > 1);`,
+      [categoria_id]
+    );
     db.run(
       `DELETE FROM eventos_partida WHERE partida_id IN (SELECT id FROM partidas WHERE categoria_id = ? AND fase_id > 1);`,
       [categoria_id]
