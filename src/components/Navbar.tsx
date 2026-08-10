@@ -24,8 +24,11 @@ import {
   Globe,
   Lock,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
 
 interface NavbarProps {
@@ -52,6 +55,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleExport = async () => {
@@ -73,9 +79,28 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  const handleReset = async () => {
-    await resetDatabaseToSeed();
-    onRefreshData();
+  const handleResetClick = () => {
+    setIsResetModalOpen(true);
+  };
+
+  const confirmResetDatabase = async () => {
+    try {
+      setIsResetting(true);
+      await resetDatabaseToSeed();
+      await onRefreshData();
+      setIsResetModalOpen(false);
+      setResetSuccessMessage('Banco de dados resetado com sucesso! Dados restaurados sem afetar seu usuário.');
+
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.5 },
+      });
+    } catch (err) {
+      console.error('Erro ao resetar banco de dados:', err);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const navItems = [
@@ -92,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleSelectTab = (id: string) => {
     if (id !== 'publico' && !isAdminAuthenticated) {
-      onOpenLoginModal();
+      setActiveTab('login');
       setMobileMenuOpen(false);
       return;
     }
@@ -102,6 +127,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
+      {/* Floating Success Notification Toast */}
+      {resetSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 max-w-md p-4 bg-[#161920] border border-emerald-500/40 rounded-2xl shadow-2xl flex items-start space-x-3 text-xs text-emerald-400 font-mono animate-fade-in">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-1">
+            <span className="font-bold text-white uppercase block">Operação Concluída</span>
+            <p className="text-[#8E9299] text-[11px] leading-relaxed">{resetSuccessMessage}</p>
+          </div>
+          <button
+            onClick={() => setResetSuccessMessage(null)}
+            className="p-1 hover:bg-emerald-500/20 rounded-lg text-emerald-300 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Mobile Top Header */}
       <header className="lg:hidden bg-[#161920] border-b border-[#262933] px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-xl">
         <div className="flex items-center space-x-3">
@@ -211,7 +253,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             ) : (
               <button
-                onClick={onOpenLoginModal}
+                onClick={() => handleSelectTab('login')}
                 className="w-full py-1.5 bg-[#FF6B1A]/10 hover:bg-[#FF6B1A]/20 text-[#FF6B1A] border border-[#FF6B1A]/30 rounded-xl text-[10px] font-mono uppercase font-black tracking-wider transition-all flex items-center justify-center space-x-1.5"
               >
                 <Lock className="w-3 h-3" />
@@ -316,8 +358,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
 
           <button
-            onClick={handleReset}
-            title="Restaurar banco com dados padrão"
+            onClick={handleResetClick}
+            title="Limpar e resetar dados do torneio"
             className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] border border-[#FF1744]/30 transition-all font-mono text-[11px] font-extrabold uppercase tracking-wider"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -332,6 +374,84 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => setMobileMenuOpen(false)}
           className="fixed inset-0 z-30 bg-black/70 backdrop-blur-sm lg:hidden"
         />
+      )}
+
+      {/* Reset Confirmation Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-md bg-[#161920] border border-[#262933] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-[#FF1744]/10 border border-[#FF1744]/30 rounded-2xl shadow-[0_0_15px_rgba(255,23,68,0.2)]">
+                  <AlertTriangle className="w-6 h-6 text-[#FF1744]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                    Resetar Banco de Dados
+                  </h3>
+                  <p className="text-xs text-[#8E9299]">
+                    Limpeza total (TRUNCATE) de dados do torneio
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                disabled={isResetting}
+                className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] rounded-xl border border-[#262933]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Warning Body */}
+            <div className="space-y-3">
+              <p className="text-xs text-[#E0E6ED] leading-relaxed">
+                Tem certeza de que deseja <strong className="text-[#FF1744]">limpar e resetar todo o banco de dados</strong>?
+              </p>
+              
+              <div className="p-3.5 bg-[#0F1115] border border-[#262933] rounded-2xl text-[11px] text-[#8E9299] space-y-2 font-mono">
+                <div className="flex items-start space-x-2 text-[#FF1744]">
+                  <span>✖</span>
+                  <span>Apagará partidas, súmulas ao vivo, gols, cartões e suspensões.</span>
+                </div>
+                <div className="flex items-start space-x-2 text-[#FF1744]">
+                  <span>✖</span>
+                  <span>Apagará alterações de times, jogadores e tabelas.</span>
+                </div>
+                <div className="pt-2 border-t border-[#262933] flex items-center space-x-2 text-emerald-400 font-bold">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Seu usuário e sessão de Administrador NÃO serão afetados.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                disabled={isResetting}
+                className="w-full sm:w-1/2 py-3 bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] font-mono text-xs uppercase font-bold rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmResetDatabase}
+                disabled={isResetting}
+                className="w-full sm:w-1/2 py-3 bg-[#FF1744] hover:bg-[#d50000] text-white font-mono text-xs uppercase font-black tracking-wider rounded-xl transition-all shadow-[0_0_20px_rgba(255,23,68,0.35)] flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                {isResetting ? (
+                  <span>Resetando...</span>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Sim, Resetar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

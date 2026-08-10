@@ -3,6 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export interface Usuario {
+  id: number;
+  nome: string;
+  email: string;
+  senha?: string;
+  role: 'ADMIN' | 'ORGANIZADOR' | 'TORCEDOR';
+  criado_em?: string;
+}
+
 export interface Categoria {
   id: number;
   nome: string;

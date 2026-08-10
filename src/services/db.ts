@@ -6,7 +6,7 @@
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
 // @ts-ignore
 import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
-import { SEED_DATA } from '../data/seedData';
+import { Usuario } from '../types';
 
 let SQL: SqlJsStatic | null = null;
 let dbInstance: Database | null = null;
@@ -37,6 +37,8 @@ export async function getDb(): Promise<Database> {
       }
       dbInstance = new SQL.Database(bytes);
       dbInstance.run('PRAGMA foreign_keys = ON;');
+      await initDatabaseSchema(dbInstance);
+      await seedUsersIfEmpty(dbInstance);
       return dbInstance;
     } catch (e) {
       console.warn('Failed to restore database from localStorage, initializing fresh:', e);
@@ -47,7 +49,8 @@ export async function getDb(): Promise<Database> {
   dbInstance = new SQL.Database();
   dbInstance.run('PRAGMA foreign_keys = ON;');
   await initDatabaseSchema(dbInstance);
-  await seedDatabaseIfEmpty(dbInstance);
+  await seedFasesIfEmpty(dbInstance);
+  await seedUsersIfEmpty(dbInstance);
   persistDatabase();
 
   return dbInstance;
@@ -71,12 +74,29 @@ export function persistDatabase() {
 }
 
 export async function resetDatabaseToSeed(): Promise<Database> {
-  if (dbInstance) {
-    dbInstance.close();
-    dbInstance = null;
+  const db = await getDb();
+  
+  db.run('PRAGMA foreign_keys = OFF;');
+  db.run('DELETE FROM suspensoes;');
+  db.run('DELETE FROM eventos_partida;');
+  db.run('DELETE FROM partidas;');
+  db.run('DELETE FROM jogadores;');
+  db.run('DELETE FROM times;');
+  db.run('DELETE FROM configuracoes_categoria;');
+  db.run('DELETE FROM fases;');
+  db.run('DELETE FROM categorias;');
+  // Not deleting from usuarios to preserve user accounts
+  try {
+    db.run('DELETE FROM sqlite_sequence;');
+  } catch (e) {
+    // ignore if sequence table does not exist
   }
-  localStorage.removeItem(DB_STORAGE_KEY);
-  return await getDb();
+  db.run('PRAGMA foreign_keys = ON;');
+
+  await seedFasesIfEmpty(db);
+  await seedUsersIfEmpty(db);
+  persistDatabase();
+  return db;
 }
 
 export async function exportSqliteFile(): Promise<Blob> {
@@ -97,6 +117,8 @@ export async function importSqliteFile(file: File): Promise<void> {
 
   dbInstance = new SQL.Database(bytes);
   dbInstance.run('PRAGMA foreign_keys = ON;');
+  await initDatabaseSchema(dbInstance);
+  await seedUsersIfEmpty(dbInstance);
   persistDatabase();
 }
 
@@ -106,6 +128,16 @@ export async function importSqliteFile(file: File): Promise<void> {
 export async function initDatabaseSchema(db: Database) {
   const schemaSQL = `
     PRAGMA foreign_keys = ON;
+
+    -- 0. USUÁRIOS
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        senha TEXT NOT NULL,
+        role TEXT DEFAULT 'ADMIN',
+        criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+    );
 
     -- 1. CATEGORIAS
     CREATE TABLE IF NOT EXISTS categorias (
@@ -231,60 +263,66 @@ export async function initDatabaseSchema(db: Database) {
 }
 
 /**
- * Seed DB with initial categories, configs, teams, and players
+ * Seed initial tournament match phases
  */
-async function seedDatabaseIfEmpty(db: Database) {
-  const result = db.exec('SELECT COUNT(*) as count FROM categorias;');
-  const count = result[0]?.values[0][0] as number;
+async function seedFasesIfEmpty(db: Database) {
+  try {
+    const result = db.exec('SELECT COUNT(*) as count FROM fases;');
+    const count = (result[0]?.values[0][0] as number) || 0;
 
-  if (count > 0) return;
-
-  // Insert Categorias
-  for (const cat of SEED_DATA.categorias) {
-    db.run('INSERT INTO categorias (id, nome) VALUES (?, ?);', [cat.id, cat.nome]);
+    if (count === 0) {
+      const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
+      fases.forEach((nome, idx) => {
+        db.run('INSERT INTO fases (id, nome) VALUES (?, ?);', [idx + 1, nome]);
+      });
+    }
+  } catch (e) {
+    console.error('Erro ao inicializar fases:', e);
   }
+}
 
-  // Insert Fases
-  const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
-  fases.forEach((nome, idx) => {
-    db.run('INSERT INTO fases (id, nome) VALUES (?, ?);', [idx + 1, nome]);
-  });
-
-  // Insert Configurations
-  for (const cfg of SEED_DATA.configuracoes) {
-    db.run(
-      `INSERT INTO configuracoes_categoria 
-       (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [
-        cfg.categoria_id,
-        cfg.valor_inscricao,
-        cfg.tempo_jogo_minutos,
-        cfg.amarelos_para_expulsao,
-        cfg.amarelos_acumulados_suspensao,
-        cfg.jogos_suspensao_amarelo,
-        cfg.jogos_suspensao_vermelho,
-        cfg.num_titulares,
-        cfg.num_reservas,
-      ]
-    );
+/**
+ * Seed initial admin user if usuarios table is empty
+ */
+export async function seedUsersIfEmpty(db: Database) {
+  try {
+    const res = db.exec('SELECT COUNT(*) as count FROM usuarios;');
+    const count = (res[0]?.values[0][0] as number) || 0;
+    if (count === 0) {
+      db.run(
+        'INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?);',
+        ['Organizador Arena Romano', 'jaldrighi@gmail.com', 'teste123A', 'ADMIN']
+      );
+    }
+  } catch (e) {
+    console.error('Erro ao verificar/popular usuários:', e);
   }
+}
 
-  // Insert Teams
-  for (const t of SEED_DATA.times) {
-    db.run(
-      'INSERT INTO times (id, nome, brasao_path, cor_hex, categoria_id) VALUES (?, ?, ?, ?, ?);',
-      [t.id, t.nome, t.brasao_path, t.cor_hex, t.categoria_id]
-    );
-  }
+/**
+ * Authenticate user against SQLite usuarios table
+ */
+export async function authenticateUser(email: string, password: string): Promise<Usuario | null> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanPassword = password.trim();
+  const users = await query<Usuario>(
+    'SELECT id, nome, email, role, criado_em FROM usuarios WHERE LOWER(email) = ? AND senha = ?;',
+    [cleanEmail, cleanPassword]
+  );
+  return users.length > 0 ? users[0] : null;
+}
 
-  // Insert Players
-  for (const j of SEED_DATA.jogadores) {
-    db.run(
-      'INSERT INTO jogadores (nome, camisa_posicao, pago, categoria_id) VALUES (?, ?, ?, ?);',
-      [j.nome, j.camisa_posicao, j.pago, j.categoria_id]
-    );
-  }
+export async function getUsuarios(): Promise<Usuario[]> {
+  return await query<Usuario>('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY id ASC;');
+}
+
+export async function createUsuario(nome: string, email: string, senha: string, role: string = 'ADMIN'): Promise<number> {
+  const cleanEmail = email.trim().toLowerCase();
+  const res = await runQuery(
+    'INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?);',
+    [nome.trim(), cleanEmail, senha.trim(), role]
+  );
+  return res.lastInsertRowid;
 }
 
 /**

@@ -13,6 +13,7 @@ export const SqlSchemaLabView: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const predefinedQueries = [
+    { label: 'Usuários (Login)', sql: 'SELECT id, nome, email, role, criado_em FROM usuarios;' },
     { label: 'Categorias', sql: 'SELECT * FROM categorias;' },
     { label: 'Configurações por Categoria', sql: 'SELECT * FROM configuracoes_categoria;' },
     { label: 'Times Cadastrados', sql: 'SELECT * FROM times;' },
