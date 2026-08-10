@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { query, getDb, exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
+import { query, runQuery, exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
 import { Database, CheckCircle, Terminal, Play, ShieldAlert, Code2, Table, Download, Upload, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -72,12 +72,11 @@ export const SqlSchemaLabView: React.FC = () => {
   const handleExecuteSql = async () => {
     try {
       setErrorMsg(null);
-      const db = await getDb();
       if (customSql.trim().toUpperCase().startsWith('SELECT')) {
         const res = await query(customSql);
         setQueryResult(res);
       } else {
-        db.run(customSql);
+        await runQuery(customSql);
         setQueryResult([{ status: 'Comando SQL executado com sucesso!' }]);
       }
     } catch (e: any) {

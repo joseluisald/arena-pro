@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Jogador, POSICOES_MAP, Time } from '../types';
-import { query, runQuery, getDb, persistDatabase } from '../services/db';
+import { query, runQuery } from '../services/db';
 import { Users, Plus, Shield, CheckCircle, Clock, Trash2, Edit, DollarSign, Filter } from 'lucide-react';
 
 interface TeamsPlayersViewProps {
@@ -123,18 +123,13 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   };
 
   const handleDeleteTeam = async (teamId: number) => {
-    const db = await getDb();
-    db.run('BEGIN TRANSACTION;');
     try {
-      db.run(`DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?);`, [teamId, teamId]);
-      db.run(`DELETE FROM eventos_partida WHERE time_id = ? OR partida_id IN (SELECT id FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?);`, [teamId, teamId, teamId]);
-      db.run(`DELETE FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?;`, [teamId, teamId]);
-      db.run(`UPDATE jogadores SET time_id = NULL WHERE time_id = ?;`, [teamId]);
-      db.run(`DELETE FROM times WHERE id = ?;`, [teamId]);
-      db.run('COMMIT;');
-      persistDatabase();
+      await runQuery(`DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?);`, [teamId, teamId]);
+      await runQuery(`DELETE FROM eventos_partida WHERE time_id = ? OR partida_id IN (SELECT id FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?);`, [teamId, teamId, teamId]);
+      await runQuery(`DELETE FROM partidas WHERE time_mandante_id = ? OR time_visitante_id = ?;`, [teamId, teamId]);
+      await runQuery(`UPDATE jogadores SET time_id = NULL WHERE time_id = ?;`, [teamId]);
+      await runQuery(`DELETE FROM times WHERE id = ?;`, [teamId]);
     } catch (e) {
-      db.run('ROLLBACK;');
       console.error('Erro ao deletar time:', e);
     }
     loadData();
@@ -162,16 +157,11 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   };
 
   const handleDeletePlayer = async (playerId: number) => {
-    const db = await getDb();
-    db.run('BEGIN TRANSACTION;');
     try {
-      db.run(`DELETE FROM suspensoes WHERE jogador_id = ?;`, [playerId]);
-      db.run(`DELETE FROM eventos_partida WHERE jogador_id = ?;`, [playerId]);
-      db.run(`DELETE FROM jogadores WHERE id = ?;`, [playerId]);
-      db.run('COMMIT;');
-      persistDatabase();
+      await runQuery(`DELETE FROM suspensoes WHERE jogador_id = ?;`, [playerId]);
+      await runQuery(`DELETE FROM eventos_partida WHERE jogador_id = ?;`, [playerId]);
+      await runQuery(`DELETE FROM jogadores WHERE id = ?;`, [playerId]);
     } catch (e) {
-      db.run('ROLLBACK;');
       console.error('Erro ao deletar jogador:', e);
     }
     loadData();

@@ -418,7 +418,6 @@ export async function createCategoria(nome: string): Promise<number> {
     [newCatId, 100, 50, 2, 3, 1, 1, 7, 5]
   );
 
-  persistDatabase();
   return newCatId;
 }
 
@@ -426,26 +425,16 @@ export async function updateCategoria(id: number, nome: string): Promise<void> {
   const cleanNome = nome.trim();
   if (!cleanNome) throw new Error('Nome da categoria não pode ser vazio');
   await runQuery('UPDATE categorias SET nome = ? WHERE id = ?;', [cleanNome, id]);
-  persistDatabase();
 }
 
 export async function deleteCategoria(id: number): Promise<void> {
-  const db = await getDb();
-  db.run('BEGIN TRANSACTION;');
-  try {
-    db.run(`DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
-    db.run(`DELETE FROM eventos_partida WHERE partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
-    db.run(`DELETE FROM partidas WHERE categoria_id = ?;`, [id]);
-    db.run(`DELETE FROM jogadores WHERE categoria_id = ?;`, [id]);
-    db.run(`DELETE FROM times WHERE categoria_id = ?;`, [id]);
-    db.run(`DELETE FROM configuracoes_categoria WHERE categoria_id = ?;`, [id]);
-    db.run(`DELETE FROM categorias WHERE id = ?;`, [id]);
-    db.run('COMMIT;');
-    persistDatabase();
-  } catch (e) {
-    db.run('ROLLBACK;');
-    throw e;
-  }
+  await runQuery(`DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
+  await runQuery(`DELETE FROM eventos_partida WHERE partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
+  await runQuery(`DELETE FROM partidas WHERE categoria_id = ?;`, [id]);
+  await runQuery(`DELETE FROM jogadores WHERE categoria_id = ?;`, [id]);
+  await runQuery(`DELETE FROM times WHERE categoria_id = ?;`, [id]);
+  await runQuery(`DELETE FROM configuracoes_categoria WHERE categoria_id = ?;`, [id]);
+  await runQuery(`DELETE FROM categorias WHERE id = ?;`, [id]);
 }
 
 /**
