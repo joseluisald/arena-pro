@@ -332,12 +332,18 @@ export async function createCategoria(nome: string): Promise<number> {
   const cleanNome = nome.trim();
   if (!cleanNome) throw new Error('Nome da categoria não pode ser vazio');
 
+  // Check if category name already exists
+  const existing = await query('SELECT id FROM categorias WHERE LOWER(nome) = LOWER(?);', [cleanNome]);
+  if (existing.length > 0) {
+    throw new Error(`Já existe uma categoria cadastrada com o nome "${cleanNome}".`);
+  }
+
   const res = await runQuery('INSERT INTO categorias (nome) VALUES (?);', [cleanNome]);
   const newCatId = res.lastInsertRowid;
 
-  // Insert default rules and settings for the new category
+  // Insert default rules and settings for the new category (safely using INSERT OR IGNORE)
   await runQuery(
-    `INSERT INTO configuracoes_categoria 
+    `INSERT OR IGNORE INTO configuracoes_categoria 
      (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [newCatId, 100, 50, 2, 3, 1, 1, 7, 5]

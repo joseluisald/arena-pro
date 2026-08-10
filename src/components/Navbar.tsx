@@ -214,65 +214,33 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Mobile close button */}
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              className="lg:hidden p-1.5 text-[#8E9299] hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Status Badge */}
-          <div className="flex items-center justify-between bg-[#0F1115] px-3 py-2 rounded-xl border border-[#262933]">
-            <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-[#FF6B1A] animate-pulse"></span>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white">SQLite Sync Engine</span>
-            </div>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#FF6B1A]/10 text-[#FF6B1A] border border-[#FF6B1A]/30 font-bold">
-              OFFLINE OK
-            </span>
-          </div>
-
-          {/* Admin Auth Status Card */}
-          <div className="bg-[#0F1115] p-3 rounded-2xl border border-[#262933] space-y-2">
-            <div className="flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-wider">
-              <span className="text-[#8E9299] flex items-center space-x-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B1A]" />
-                <span>Status do Acesso</span>
-              </span>
-              <span className={`px-1.5 py-0.5 rounded text-[9px] ${
-                isAdminAuthenticated 
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
-                  : 'bg-[#FFC400]/10 text-[#FFC400] border border-[#FFC400]/30'
-              }`}>
-                {isAdminAuthenticated ? 'Admin Autenticado' : 'Visitante / Público'}
-              </span>
-            </div>
-
-            {isAdminAuthenticated ? (
-              <div className="flex items-center justify-between pt-1 text-xs">
-                <span className="text-[11px] text-white font-mono truncate font-semibold">
-                  jaldrighi@gmail.com
-                </span>
+            <div className="flex items-center space-x-1">
+              {isAdminAuthenticated ? (
                 <button
                   onClick={onLogout}
-                  className="p-1 text-[#FF1744] hover:bg-[#FF1744]/10 rounded-lg transition-colors flex items-center space-x-1 text-[10px] font-mono uppercase font-bold"
+                  className="p-2 text-[#FF1744] hover:bg-[#FF1744]/10 rounded-xl transition-colors flex items-center space-x-1 text-[10px] font-mono uppercase font-bold border border-[#FF1744]/20"
                   title="Encerrar Sessão de Admin"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sair</span>
+                  <LogOut className="w-4 h-4" />
                 </button>
-              </div>
-            ) : (
+              ) : (
+                <button
+                  onClick={() => handleSelectTab('login')}
+                  className="p-2 text-[#FF6B1A] hover:bg-[#FF6B1A]/10 rounded-xl transition-colors border border-[#FF6B1A]/20"
+                  title="Entrar como Organizador"
+                >
+                  <Lock className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Mobile close button */}
               <button
-                onClick={() => handleSelectTab('login')}
-                className="w-full py-1.5 bg-[#FF6B1A]/10 hover:bg-[#FF6B1A]/20 text-[#FF6B1A] border border-[#FF6B1A]/30 rounded-xl text-[10px] font-mono uppercase font-black tracking-wider transition-all flex items-center justify-center space-x-1.5"
+                onClick={() => setMobileMenuOpen(false)}
+                className="lg:hidden p-1.5 text-[#8E9299] hover:text-white"
               >
-                <Lock className="w-3 h-3" />
-                <span>Entrar como Organizador</span>
+                <X className="w-5 h-5" />
               </button>
-            )}
+            </div>
           </div>
 
           {/* Category Selector Card */}
