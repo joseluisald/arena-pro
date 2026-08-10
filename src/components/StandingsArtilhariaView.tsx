@@ -6,8 +6,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ArtilhariaItem, ClassificacaoItem, DestaqueItem, Suspensao } from '../types';
 import { query } from '../services/db';
-import { Trophy, ShieldAlert, Award, AlertTriangle, Users, Flame, Share2, Download, Sparkles, X, Shield, Image } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { Trophy, ShieldAlert, Award, AlertTriangle, Users, Flame, Share2, Download, Sparkles, X, Shield, Image, Printer } from 'lucide-react';
 
 interface StandingsArtilhariaViewProps {
   categoriaId: number;
@@ -25,21 +24,8 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
   const [isExportingPost, setIsExportingPost] = useState(false);
   const postCardRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadPostImage = async () => {
-    if (!postCardRef.current) return;
-    try {
-      setIsExportingPost(true);
-      const dataUrl = await toPng(postCardRef.current, { cacheBust: true, pixelRatio: 2 });
-      const link = document.createElement('a');
-      link.download = `arena_romano_classificacao_${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Erro ao gerar imagem para post:', err);
-      alert('Erro ao exportar imagem do post. Tente novamente.');
-    } finally {
-      setIsExportingPost(false);
-    }
+  const handleDownloadPostImage = () => {
+    window.print();
   };
 
   useEffect(() => {

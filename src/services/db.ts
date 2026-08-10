@@ -3,28 +3,58 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
 // @ts-ignore
-import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
+import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
+// @ts-ignore
+import sqlite3WasmUrl from '@sqlite.org/sqlite-wasm/sqlite3.wasm?url';
 import { Usuario } from '../types';
 
-let SQL: SqlJsStatic | null = null;
-let dbInstance: Database | null = null;
+let sqlite3Instance: any = null;
+let dbInstance: any = null;
 
 const DB_STORAGE_KEY = 'torneio_society_db_v1';
 
-async function initSqlInstance(): Promise<SqlJsStatic> {
-  if (SQL) return SQL;
-  SQL = await initSqlJs({
-    locateFile: (file) => (file.endsWith('.wasm') ? sqlWasmUrl : `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`),
+async function initSqliteInstance(): Promise<any> {
+  if (sqlite3Instance) return sqlite3Instance;
+  // @ts-ignore
+  sqlite3Instance = await sqlite3InitModule({
+    locateFile: (file: string) => {
+      if (file.endsWith('.wasm')) {
+        return sqlite3WasmUrl;
+      }
+      return file;
+    },
   });
-  return SQL;
+  return sqlite3Instance;
 }
 
-export async function getDb(): Promise<Database> {
+function patchDbMethods(db: any) {
+  if (!db.run) {
+    db.run = (sql: string, bind: any[] = []) => {
+      db.exec({ sql, bind });
+    };
+  }
+}
+
+function createDbFromBytes(sqlite3: any, bytes: Uint8Array) {
+  const p = sqlite3.wasm.allocFromTypedArray(bytes);
+  const db = new sqlite3.oo1.DB();
+  sqlite3.capi.sqlite3_deserialize(
+    db.pointer,
+    'main',
+    p,
+    bytes.byteLength,
+    bytes.byteLength,
+    sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE | sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE
+  );
+  patchDbMethods(db);
+  return db;
+}
+
+export async function getDb(): Promise<any> {
   if (dbInstance) return dbInstance;
 
-  const sqlInstance = await initSqlInstance();
+  const sqlite3 = await initSqliteInstance();
 
   // Check if we have a saved database in localStorage
   const savedDbBase64 = localStorage.getItem(DB_STORAGE_KEY);
@@ -35,8 +65,8 @@ export async function getDb(): Promise<Database> {
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      dbInstance = new SQL.Database(bytes);
-      dbInstance.run('PRAGMA foreign_keys = ON;');
+      dbInstance = createDbFromBytes(sqlite3, bytes);
+      dbInstance.exec('PRAGMA foreign_keys = ON;');
       await initDatabaseSchema(dbInstance);
       await seedUsersIfEmpty(dbInstance);
       return dbInstance;
@@ -46,8 +76,9 @@ export async function getDb(): Promise<Database> {
   }
 
   // Initialize fresh database
-  dbInstance = new SQL.Database();
-  dbInstance.run('PRAGMA foreign_keys = ON;');
+  dbInstance = new sqlite3.oo1.DB();
+  patchDbMethods(dbInstance);
+  dbInstance.exec('PRAGMA foreign_keys = ON;');
   await initDatabaseSchema(dbInstance);
   await seedFasesIfEmpty(dbInstance);
   await seedUsersIfEmpty(dbInstance);
@@ -57,11 +88,10 @@ export async function getDb(): Promise<Database> {
 }
 
 export function persistDatabase() {
-  if (!dbInstance) return;
+  if (!dbInstance || !sqlite3Instance) return;
   try {
-    const data = dbInstance.export();
+    const bytes = sqlite3Instance.capi.sqlite3_js_db_export(dbInstance);
     let binary = '';
-    const bytes = new Uint8Array(data);
     const len = bytes.byteLength;
     for (let i = 0; i < len; i++) {
       binary += String.fromCharCode(bytes[i]);
@@ -73,7 +103,14 @@ export function persistDatabase() {
   }
 }
 
-export async function resetDatabaseToSeed(): Promise<Database> {
+export async function resetDatabaseToSeed(): Promise<any> {
+  try {
+    const res = await fetch('/api/db/reset', { method: 'POST' });
+    if (res.ok) return;
+  } catch (e) {
+    console.warn('Failed to reset server database, resetting locally:', e);
+  }
+
   const db = await getDb();
   
   db.run('PRAGMA foreign_keys = OFF;');
@@ -85,7 +122,6 @@ export async function resetDatabaseToSeed(): Promise<Database> {
   db.run('DELETE FROM configuracoes_categoria;');
   db.run('DELETE FROM fases;');
   db.run('DELETE FROM categorias;');
-  // Not deleting from usuarios to preserve user accounts
   try {
     db.run('DELETE FROM sqlite_sequence;');
   } catch (e) {
@@ -100,23 +136,43 @@ export async function resetDatabaseToSeed(): Promise<Database> {
 }
 
 export async function exportSqliteFile(): Promise<Blob> {
+  try {
+    const res = await fetch('/api/db/export');
+    if (res.ok) {
+      return await res.blob();
+    }
+  } catch (e) {
+    console.warn('Failed to fetch database.sqlite from server:', e);
+  }
+
   const db = await getDb();
-  const binary = db.export();
-  return new Blob([binary], { type: 'application/x-sqlite3' });
+  const bytes = sqlite3Instance.capi.sqlite3_js_db_export(db);
+  return new Blob([bytes], { type: 'application/x-sqlite3' });
 }
 
 export async function importSqliteFile(file: File): Promise<void> {
   const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
 
-  const sqlInstance = await initSqlInstance();
+  try {
+    const res = await fetch('/api/db/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-sqlite3' },
+      body: arrayBuffer,
+    });
+    if (res.ok) return;
+  } catch (e) {
+    console.warn('Failed to import database.sqlite to server:', e);
+  }
+
+  const bytes = new Uint8Array(arrayBuffer);
+  const sqlite3 = await initSqliteInstance();
 
   if (dbInstance) {
     dbInstance.close();
   }
 
-  dbInstance = new SQL.Database(bytes);
-  dbInstance.run('PRAGMA foreign_keys = ON;');
+  dbInstance = createDbFromBytes(sqlite3, bytes);
+  dbInstance.exec('PRAGMA foreign_keys = ON;');
   await initDatabaseSchema(dbInstance);
   await seedUsersIfEmpty(dbInstance);
   persistDatabase();
@@ -125,7 +181,7 @@ export async function importSqliteFile(file: File): Promise<void> {
 /**
  * Initialize all tables, views, and triggers required by the tournament system
  */
-export async function initDatabaseSchema(db: Database) {
+export async function initDatabaseSchema(db: any) {
   const schemaSQL = `
     PRAGMA foreign_keys = ON;
 
@@ -278,10 +334,10 @@ export async function initDatabaseSchema(db: Database) {
 /**
  * Seed initial tournament match phases
  */
-async function seedFasesIfEmpty(db: Database) {
+async function seedFasesIfEmpty(db: any) {
   try {
-    const result = db.exec('SELECT COUNT(*) as count FROM fases;');
-    const count = (result[0]?.values[0][0] as number) || 0;
+    const res = await query<{ count: number }>('SELECT COUNT(*) as count FROM fases;');
+    const count = (res[0]?.count as number) || 0;
 
     if (count === 0) {
       const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
@@ -297,10 +353,10 @@ async function seedFasesIfEmpty(db: Database) {
 /**
  * Seed initial admin user if usuarios table is empty
  */
-export async function seedUsersIfEmpty(db: Database) {
+export async function seedUsersIfEmpty(db: any) {
   try {
-    const res = db.exec('SELECT COUNT(*) as count FROM usuarios;');
-    const count = (res[0]?.values[0][0] as number) || 0;
+    const res = await query<{ count: number }>('SELECT COUNT(*) as count FROM usuarios;');
+    const count = (res[0]?.count as number) || 0;
     if (count === 0) {
       db.run(
         'INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?);',
@@ -396,17 +452,30 @@ export async function deleteCategoria(id: number): Promise<void> {
  * Execute a SQL query and return array of mapped objects
  */
 export async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  const db = await getDb();
-  const stmt = db.prepare(sql);
-  if (params.length) {
-    stmt.bind(params);
+  try {
+    const res = await fetch('/api/db/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql, params }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) return data.rows as T[];
+    }
+  } catch (e) {
+    console.warn('API query error, using local fallback:', e);
   }
 
+  const db = await getDb();
   const results: T[] = [];
-  while (stmt.step()) {
-    results.push(stmt.getAsObject() as T);
-  }
-  stmt.free();
+  db.exec({
+    sql,
+    bind: params,
+    rowMode: 'object',
+    callback: (row: any) => {
+      results.push(row as T);
+    },
+  });
   return results;
 }
 
@@ -414,13 +483,36 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<T
  * Execute a mutation query (INSERT, UPDATE, DELETE) and persist DB
  */
 export async function runQuery(sql: string, params: any[] = []): Promise<{ lastInsertRowid: number; changes: number }> {
+  try {
+    const res = await fetch('/api/db/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql, params }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        return { lastInsertRowid: data.lastInsertRowid, changes: data.changes };
+      }
+    }
+  } catch (e) {
+    console.warn('API runQuery error, using local fallback:', e);
+  }
+
   const db = await getDb();
-  db.run(sql, params);
+  db.exec({ sql, bind: params });
   persistDatabase();
-  
-  const res = db.exec('SELECT last_insert_rowid() as id, changes() as changes;');
-  const lastInsertRowid = (res[0]?.values[0][0] as number) || 0;
-  const changes = (res[0]?.values[0][1] as number) || 0;
+
+  let lastInsertRowid = 0;
+  let changes = 0;
+  db.exec({
+    sql: 'SELECT last_insert_rowid() as id, changes() as changes;',
+    rowMode: 'object',
+    callback: (row: any) => {
+      lastInsertRowid = row.id || 0;
+      changes = row.changes || 0;
+    },
+  });
 
   return { lastInsertRowid, changes };
 }

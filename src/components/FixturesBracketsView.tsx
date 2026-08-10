@@ -57,6 +57,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
       [categoriaId]
     );
     setMatches(gList);
+    if (gList.some((m) => m.grupo === 'B')) {
+      setDrawFormat('DUAS_CHAVES');
+    }
 
     // Playoff matches
     const pList = await query<Partida>(
@@ -134,11 +137,30 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
     }
   };
 
-  // Group matches by round
+  // Check if matches belong to two groups
+  const isTwoGroups = drawFormat === 'DUAS_CHAVES' || matches.some((m) => m.grupo === 'B');
+
+  // Group matches by round for Single Group
   const matchesByRound: Record<number, Partida[]> = {};
   matches.forEach((m) => {
     if (!matchesByRound[m.rodada]) matchesByRound[m.rodada] = [];
     matchesByRound[m.rodada].push(m);
+  });
+
+  // Group matches by round for Chave A & Chave B
+  const groupAMatches = matches.filter((m) => m.grupo === 'A' || !m.grupo);
+  const groupBMatches = matches.filter((m) => m.grupo === 'B');
+
+  const groupAMatchesByRound: Record<number, Partida[]> = {};
+  groupAMatches.forEach((m) => {
+    if (!groupAMatchesByRound[m.rodada]) groupAMatchesByRound[m.rodada] = [];
+    groupAMatchesByRound[m.rodada].push(m);
+  });
+
+  const groupBMatchesByRound: Record<number, Partida[]> = {};
+  groupBMatches.forEach((m) => {
+    if (!groupBMatchesByRound[m.rodada]) groupBMatchesByRound[m.rodada] = [];
+    groupBMatchesByRound[m.rodada].push(m);
   });
 
   return (
@@ -251,10 +273,158 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
               <AlertCircle className="w-10 h-10 text-[#8E9299] mx-auto" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Nenhum confronto criado na Fase de Grupos</h3>
               <p className="text-xs text-[#8E9299] max-w-md mx-auto">
-                Clique no botão acima para gerar automaticamente as rodadas de todos contra todos.
+                Clique no botão acima para gerar automaticamente as rodadas da fase de grupos.
               </p>
             </div>
+          ) : isTwoGroups ? (
+            /* Duas Chaves - Layout em 2 Colunas (Chave A e Chave B) */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Coluna Chave A */}
+              <div className="space-y-4">
+                <div className="bg-[#161920] border-2 border-[#FF6B1A]/40 rounded-2xl p-4 flex items-center justify-between shadow-xl">
+                  <div className="flex items-center space-x-2">
+                    <Shield className="w-5 h-5 text-[#FF6B1A]" />
+                    <h3 className="text-sm font-black text-white uppercase tracking-tight">CHAVE A (GRUPO A)</h3>
+                  </div>
+                  <span className="px-2.5 py-1 bg-[#FF6B1A]/10 text-[#FF6B1A] border border-[#FF6B1A]/30 rounded-lg text-xs font-mono font-bold">
+                    {groupAMatches.length} Partidas
+                  </span>
+                </div>
+
+                {Object.keys(groupAMatchesByRound).length === 0 ? (
+                  <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 text-center text-xs text-[#8E9299]">
+                    Nenhum confronto na Chave A.
+                  </div>
+                ) : (
+                  Object.entries(groupAMatchesByRound).map(([roundNum, rMatches]) => (
+                    <div key={roundNum} className="bg-[#161920] border border-[#262933] rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
+                        <h4 className="text-xs font-bold text-[#FF6B1A] font-mono uppercase tracking-wider flex items-center space-x-2">
+                          <span>Rodada {roundNum}</span>
+                          <span className="text-[#8E9299] text-[11px] font-normal">({rMatches.length} jogos)</span>
+                        </h4>
+                      </div>
+
+                      <div className="space-y-2">
+                        {rMatches.map((m) => (
+                          <div
+                            key={m.id}
+                            className="bg-[#0F1115] p-3 rounded-xl border border-[#262933] hover:border-[#FF6B1A]/40 transition-all flex items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              {/* Mandante */}
+                              <div className="flex items-center space-x-1.5 flex-1 justify-end text-right min-w-0">
+                                <span className="text-xs font-bold text-white truncate">{m.time_mandante_nome}</span>
+                                <div
+                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  style={{ backgroundColor: m.time_mandante_cor }}
+                                />
+                              </div>
+
+                              {/* Placar */}
+                              <div className="bg-[#161920] px-2.5 py-1 rounded-lg border border-[#262933] font-mono font-black text-xs text-white shrink-0">
+                                {m.gols_mandante} x {m.gols_visitante}
+                              </div>
+
+                              {/* Visitante */}
+                              <div className="flex items-center space-x-1.5 flex-1 text-left min-w-0">
+                                <div
+                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  style={{ backgroundColor: m.time_visitante_cor }}
+                                />
+                                <span className="text-xs font-bold text-white truncate">{m.time_visitante_nome}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => onNavigateToMatch(m.id)}
+                              className="p-1.5 bg-[#161920] hover:bg-[#FF6B1A] text-[#E0E6ED] hover:text-black border border-[#262933] hover:border-[#FF6B1A] rounded-lg transition-colors shrink-0"
+                              title="Abrir Súmula Digital"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Coluna Chave B */}
+              <div className="space-y-4">
+                <div className="bg-[#161920] border-2 border-[#FFC400]/40 rounded-2xl p-4 flex items-center justify-between shadow-xl">
+                  <div className="flex items-center space-x-2">
+                    <Shield className="w-5 h-5 text-[#FFC400]" />
+                    <h3 className="text-sm font-black text-white uppercase tracking-tight">CHAVE B (GRUPO B)</h3>
+                  </div>
+                  <span className="px-2.5 py-1 bg-[#FFC400]/10 text-[#FFC400] border border-[#FFC400]/30 rounded-lg text-xs font-mono font-bold">
+                    {groupBMatches.length} Partidas
+                  </span>
+                </div>
+
+                {Object.keys(groupBMatchesByRound).length === 0 ? (
+                  <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 text-center text-xs text-[#8E9299]">
+                    Nenhum confronto na Chave B.
+                  </div>
+                ) : (
+                  Object.entries(groupBMatchesByRound).map(([roundNum, rMatches]) => (
+                    <div key={roundNum} className="bg-[#161920] border border-[#262933] rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
+                        <h4 className="text-xs font-bold text-[#FFC400] font-mono uppercase tracking-wider flex items-center space-x-2">
+                          <span>Rodada {roundNum}</span>
+                          <span className="text-[#8E9299] text-[11px] font-normal">({rMatches.length} jogos)</span>
+                        </h4>
+                      </div>
+
+                      <div className="space-y-2">
+                        {rMatches.map((m) => (
+                          <div
+                            key={m.id}
+                            className="bg-[#0F1115] p-3 rounded-xl border border-[#262933] hover:border-[#FFC400]/40 transition-all flex items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              {/* Mandante */}
+                              <div className="flex items-center space-x-1.5 flex-1 justify-end text-right min-w-0">
+                                <span className="text-xs font-bold text-white truncate">{m.time_mandante_nome}</span>
+                                <div
+                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  style={{ backgroundColor: m.time_mandante_cor }}
+                                />
+                              </div>
+
+                              {/* Placar */}
+                              <div className="bg-[#161920] px-2.5 py-1 rounded-lg border border-[#262933] font-mono font-black text-xs text-white shrink-0">
+                                {m.gols_mandante} x {m.gols_visitante}
+                              </div>
+
+                              {/* Visitante */}
+                              <div className="flex items-center space-x-1.5 flex-1 text-left min-w-0">
+                                <div
+                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  style={{ backgroundColor: m.time_visitante_cor }}
+                                />
+                                <span className="text-xs font-bold text-white truncate">{m.time_visitante_nome}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => onNavigateToMatch(m.id)}
+                              className="p-1.5 bg-[#161920] hover:bg-[#FFC400] text-[#E0E6ED] hover:text-black border border-[#262933] hover:border-[#FFC400] rounded-lg transition-colors shrink-0"
+                              title="Abrir Súmula Digital"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           ) : (
+            /* Chave Única - Layout Padrão por Rodada */
             Object.entries(matchesByRound).map(([roundNum, roundMatches]) => (
               <div key={roundNum} className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-[#262933]">

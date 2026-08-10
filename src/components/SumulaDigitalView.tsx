@@ -29,8 +29,12 @@ import {
   X,
   Sparkles,
   ShieldAlert,
+  Printer,
+  FileText,
+  Download,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { SumulaA4PrintDocument } from './SumulaA4PrintDocument';
 
 interface SumulaDigitalViewProps {
   matchId: number | null;
@@ -61,6 +65,9 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
   // Category timer duration limit in minutes
   const [categoryMinutes, setCategoryMinutes] = useState(20);
+
+  // A4 Print & PDF Preview Modal State
+  const [isA4PreviewOpen, setIsA4PreviewOpen] = useState(false);
 
   useEffect(() => {
     loadCategoryMatches();
@@ -261,7 +268,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
           </button>
         </div>
       )}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#161920] border border-[#262933] p-4 rounded-2xl shadow-xl">
+      <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4 bg-[#161920] border border-[#262933] p-4 rounded-2xl shadow-xl no-print">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBack}
@@ -277,25 +284,59 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
           </div>
         </div>
 
-        {/* Match Switcher Dropdown */}
-        <div className="flex items-center space-x-2 bg-[#0F1115] p-1.5 rounded-xl border border-[#262933]">
-          <span className="text-[10px] text-[#8E9299] font-mono uppercase tracking-wider pl-2">Partida:</span>
-          <select
-            value={selectedMatchId || ''}
-            onChange={(e) => setSelectedMatchId(Number(e.target.value))}
-            className="bg-[#161920] text-[#FF6B1A] text-xs font-bold font-mono rounded-lg px-3 py-2 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A] max-w-[220px] truncate"
-          >
-            {matchList.map((m) => (
-              <option key={m.id} value={m.id}>
-                #{m.id} - {m.time_mandante_nome} x {m.time_visitante_nome} ({m.status})
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Match Switcher Dropdown */}
+          <div className="flex items-center space-x-2 bg-[#0F1115] p-1.5 rounded-xl border border-[#262933]">
+            <span className="text-[10px] text-[#8E9299] font-mono uppercase tracking-wider pl-2">Partida:</span>
+            <select
+              value={selectedMatchId || ''}
+              onChange={(e) => setSelectedMatchId(Number(e.target.value))}
+              className="bg-[#161920] text-[#FF6B1A] text-xs font-bold font-mono rounded-lg px-3 py-2 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A] max-w-[200px] truncate"
+            >
+              {matchList.map((m) => (
+                <option key={m.id} value={m.id}>
+                  #{m.id} - {m.time_mandante_nome} x {m.time_visitante_nome} ({m.status})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Action Buttons: Preview A4, Print, PDF */}
+          {match && (
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setIsA4PreviewOpen(true)}
+                className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all"
+                title="Visualizar documento formatado A4"
+              >
+                <FileText className="w-4 h-4 text-[#FF6B1A]" />
+                <span className="hidden sm:inline">Visualizar A4</span>
+              </button>
+
+              <button
+                onClick={() => window.print()}
+                className="px-3.5 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black rounded-xl text-xs font-black font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                title="Imprimir Súmula Oficial em Folha A4"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Imprimir Súmula (A4)</span>
+              </button>
+
+              <button
+                onClick={() => window.print()}
+                className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-emerald-400 border border-emerald-500/30 hover:border-emerald-500 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all"
+                title="Exportar para PDF via impressão do navegador"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Exportar PDF</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {match && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 no-print">
           
           {/* Main Scoreboard & Timer Panel (2 Cols) */}
           <div className="lg:col-span-2 space-y-6">
@@ -777,6 +818,68 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* A4 Preview Modal */}
+      {isA4PreviewOpen && match && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in no-print overflow-y-auto">
+          <div className="relative w-full max-w-4xl bg-[#161920] border border-[#262933] rounded-3xl p-6 shadow-2xl space-y-4 my-8 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#262933]">
+              <div className="flex items-center space-x-3">
+                <FileText className="w-6 h-6 text-[#FF6B1A]" />
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">
+                    Visualização da Súmula Oficial (Layout A4)
+                  </h3>
+                  <p className="text-xs text-[#8E9299]">
+                    Documento formatado para impressão física e exportação em PDF.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase font-mono tracking-wider flex items-center space-x-2 transition-all shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir / Exportar PDF</span>
+                </button>
+                <button
+                  onClick={() => setIsA4PreviewOpen(false)}
+                  className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] rounded-xl border border-[#262933]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Render Scroll Area */}
+            <div className="flex-1 overflow-y-auto bg-gray-900 p-4 rounded-2xl border border-[#262933] flex justify-center">
+              <div className="w-full max-w-[210mm] shadow-2xl bg-white rounded">
+                <SumulaA4PrintDocument
+                  match={match}
+                  mandanteRoster={mandanteRoster}
+                  visitanteRoster={visitanteRoster}
+                  events={events}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Print Container specifically targeted by @media print */}
+      {match && (
+        <div className="hidden print:block print-sumula-container">
+          <SumulaA4PrintDocument
+            match={match}
+            mandanteRoster={mandanteRoster}
+            visitanteRoster={visitanteRoster}
+            events={events}
+          />
         </div>
       )}
     </div>

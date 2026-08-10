@@ -6,6 +6,9 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    optimizeDeps: {
+      exclude: ['@sqlite.org/sqlite-wasm'],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
