@@ -251,6 +251,7 @@ export default function App() {
                     <FixturesBracketsView
                       categoriaId={selectedCategoriaId}
                       onNavigateToMatch={handleNavigateToMatch}
+                      onNavigateTab={setActiveTab}
                     />
                   )}
 

@@ -175,7 +175,7 @@ export async function generatePlayoffs(categoria_id: number): Promise<void> {
   );
 
   if (standings.length < 2) {
-    throw new Error('Classificação insuficiente para gerar o mata-mata.');
+    throw new Error('É necessário ter no mínimo 2 times cadastrados na categoria para gerar a fase de mata-mata.');
   }
 
   // Delete existing playoff matches for this category
@@ -192,16 +192,23 @@ export async function generatePlayoffs(categoria_id: number): Promise<void> {
   const numTeams = standings.length;
   const nowISO = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-  if (numTeams >= 6) {
-    // 8 / 6 Teams standard system:
-    // Top 2 (1º and 2º) bye directly to Semifinal
-    // Quartas / Repescagem: 3º vs 6º (Q1) and 4º vs 5º (Q2)
+  if (numTeams === 2) {
+    // 2 teams: Direct Final between 1st and 2nd
+    const t1 = standings[0].time_id;
+    const t2 = standings[1].time_id;
+    await runQuery(
+      `INSERT INTO partidas 
+       (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
+       VALUES (?, 4, ?, ?, ?, 'AGENDADO', 1);`,
+      [categoria_id, t1, t2, nowISO]
+    );
+  } else if (numTeams >= 6) {
+    // 6+ Teams: Quartas (3º vs 6º and 4º vs 5º; 1º and 2º bye directly to Semifinals)
     const t3 = standings[2].time_id;
     const t4 = standings[3].time_id;
     const t5 = standings[4].time_id;
-    const t6 = standings[5] ? standings[5].time_id : standings[4].time_id;
+    const t6 = standings[5].time_id;
 
-    // Quartas Match 1: 3º vs 6º
     await runQuery(
       `INSERT INTO partidas 
        (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
@@ -209,7 +216,6 @@ export async function generatePlayoffs(categoria_id: number): Promise<void> {
       [categoria_id, t3, t6, nowISO]
     );
 
-    // Quartas Match 2: 4º vs 5º
     await runQuery(
       `INSERT INTO partidas 
        (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
@@ -217,26 +223,35 @@ export async function generatePlayoffs(categoria_id: number): Promise<void> {
       [categoria_id, t4, t5, nowISO]
     );
   } else {
-    // Direct Semifinal for 4 teams: 1º vs 4º and 2º vs 3º
+    // 3, 4, or 5 teams
     const t1 = standings[0].time_id;
     const t2 = standings[1].time_id;
-    const t3 = standings[2] ? standings[2].time_id : standings[1].time_id;
-    const t4 = standings[3] ? standings[3].time_id : standings[0].time_id;
+    const t3 = standings[2].time_id;
 
-    // Semi 1: 1º vs 4º
-    await runQuery(
-      `INSERT INTO partidas 
-       (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
-       VALUES (?, 3, ?, ?, ?, 'AGENDADO', 1);`,
-      [categoria_id, t1, t4, nowISO]
-    );
+    if (numTeams === 3) {
+      // 3 teams: Semifinal (2º vs 3º)
+      await runQuery(
+        `INSERT INTO partidas 
+         (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
+         VALUES (?, 3, ?, ?, ?, 'AGENDADO', 1);`,
+        [categoria_id, t2, t3, nowISO]
+      );
+    } else {
+      // 4 or 5 teams: Semifinals (1º vs 4º and 2º vs 3º)
+      const t4 = standings[3].time_id;
+      await runQuery(
+        `INSERT INTO partidas 
+         (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
+         VALUES (?, 3, ?, ?, ?, 'AGENDADO', 1);`,
+        [categoria_id, t1, t4, nowISO]
+      );
 
-    // Semi 2: 2º vs 3º
-    await runQuery(
-      `INSERT INTO partidas 
-       (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
-       VALUES (?, 3, ?, ?, ?, 'AGENDADO', 1);`,
-      [categoria_id, t2, t3, nowISO]
-    );
+      await runQuery(
+        `INSERT INTO partidas 
+         (categoria_id, fase_id, time_mandante_id, time_visitante_id, data_hora, status, rodada)
+         VALUES (?, 3, ?, ?, ?, 'AGENDADO', 1);`,
+        [categoria_id, t2, t3, nowISO]
+      );
+    }
   }
 }

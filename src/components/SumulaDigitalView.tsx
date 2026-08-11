@@ -32,9 +32,11 @@ import {
   Printer,
   FileText,
   Download,
+  Image,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { SumulaA4PrintDocument } from './SumulaA4PrintDocument';
+import { exportElementAsImage, exportElementAsPdf } from '../utils/exportUtils';
 
 interface SumulaDigitalViewProps {
   matchId: number | null;
@@ -68,6 +70,29 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
   // A4 Print & PDF Preview Modal State
   const [isA4PreviewOpen, setIsA4PreviewOpen] = useState(false);
+  const [exportingSumula, setExportingSumula] = useState<string | null>(null);
+
+  const handleExportSumulaImage = async () => {
+    try {
+      setExportingSumula('image');
+      await exportElementAsImage('sumula-a4-document-container', `sumula-jogo-${selectedMatchId}-feed.png`);
+    } catch (e: any) {
+      alert('Erro ao gerar imagem da súmula: ' + (e?.message || e));
+    } finally {
+      setExportingSumula(null);
+    }
+  };
+
+  const handleExportSumulaPdf = async () => {
+    try {
+      setExportingSumula('pdf');
+      await exportElementAsPdf('sumula-a4-document-container', `sumula-jogo-${selectedMatchId}.pdf`);
+    } catch (e: any) {
+      alert('Erro ao gerar PDF da súmula: ' + (e?.message || e));
+    } finally {
+      setExportingSumula(null);
+    }
+  };
 
   useEffect(() => {
     loadCategoryMatches();
@@ -268,11 +293,11 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
           </button>
         </div>
       )}
-      <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4 bg-[#161920] border border-[#262933] p-4 rounded-2xl shadow-xl no-print">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#161920] border border-[#262933] p-4 rounded-2xl shadow-xl no-print">
+        <div className="flex items-center space-x-3 shrink-0">
           <button
             onClick={onBack}
-            className="p-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl transition-colors"
+            className="p-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl transition-colors shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -284,9 +309,9 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-row flex-wrap items-center gap-2">
           {/* Match Switcher Dropdown */}
-          <div className="flex items-center space-x-2 bg-[#0F1115] p-1.5 rounded-xl border border-[#262933]">
+          <div className="flex items-center space-x-2 bg-[#0F1115] p-1.5 rounded-xl border border-[#262933] shrink-0">
             <span className="text-[10px] text-[#8E9299] font-mono uppercase tracking-wider pl-2">Partida:</span>
             <select
               value={selectedMatchId || ''}
@@ -301,34 +326,45 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
             </select>
           </div>
 
-          {/* Action Buttons: Preview A4, Print, PDF */}
+          {/* Action Buttons: Preview A4, Feed Image, PDF, Print */}
           {match && (
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-row flex-wrap items-center gap-2">
+              <button
+                onClick={handleExportSumulaImage}
+                disabled={exportingSumula !== null}
+                className="px-3 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(255,107,26,0.3)] disabled:opacity-50 shrink-0"
+                title="Gerar e baixar imagem PNG da súmula para feed ou WhatsApp"
+              >
+                <Image className="w-4 h-4" />
+                <span>{exportingSumula === 'image' ? 'Gerando...' : '📸 Imagem Feed'}</span>
+              </button>
+
+              <button
+                onClick={handleExportSumulaPdf}
+                disabled={exportingSumula !== null}
+                className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all disabled:opacity-50 shrink-0"
+                title="Baixar PDF da Súmula"
+              >
+                <Download className="w-4 h-4" />
+                <span>{exportingSumula === 'pdf' ? 'Gerando...' : '📄 Baixar PDF'}</span>
+              </button>
+
               <button
                 onClick={() => setIsA4PreviewOpen(true)}
-                className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all"
+                className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all shrink-0"
                 title="Visualizar documento formatado A4"
               >
                 <FileText className="w-4 h-4 text-[#FF6B1A]" />
-                <span className="hidden sm:inline">Visualizar A4</span>
+                <span>Visualizar A4</span>
               </button>
 
               <button
                 onClick={() => window.print()}
-                className="px-3.5 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black rounded-xl text-xs font-black font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all shrink-0"
                 title="Imprimir Súmula Oficial em Folha A4"
               >
-                <Printer className="w-4 h-4" />
-                <span>Imprimir Súmula (A4)</span>
-              </button>
-
-              <button
-                onClick={() => window.print()}
-                className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-emerald-400 border border-emerald-500/30 hover:border-emerald-500 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center space-x-1.5 transition-all"
-                title="Exportar para PDF via impressão do navegador"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Exportar PDF</span>
+                <Printer className="w-4 h-4 text-[#FF6B1A]" />
+                <span className="hidden sm:inline">Imprimir (A4)</span>
               </button>
             </div>
           )}
@@ -624,41 +660,41 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {/* Gol */}
                     <button
                       onClick={() => handleRegisterEvent('GOL')}
-                      className="p-3 bg-[#FF6B1A]/20 hover:bg-[#FF6B1A] text-[#FF6B1A] hover:text-black border border-[#FF6B1A]/40 rounded-xl text-xs font-bold flex flex-col items-center space-y-1 transition-all uppercase tracking-wider"
+                      className="p-2.5 bg-[#FF6B1A]/20 hover:bg-[#FF6B1A] text-[#FF6B1A] hover:text-black border border-[#FF6B1A]/40 rounded-xl text-xs font-bold flex flex-row items-center justify-center space-x-1.5 transition-all uppercase tracking-wider"
                     >
-                      <span className="text-lg">⚽</span>
+                      <span className="text-base">⚽</span>
                       <span>+ Gol</span>
                     </button>
 
                     {/* Cartão Amarelo */}
                     <button
                       onClick={() => handleRegisterEvent('CARTAO_AMARELO')}
-                      className="p-3 bg-[#FFC400]/20 hover:bg-[#FFC400] text-[#FFC400] hover:text-black border border-[#FFC400]/40 rounded-xl text-xs font-bold flex flex-col items-center space-y-1 transition-all uppercase tracking-wider"
+                      className="p-2.5 bg-[#FFC400]/20 hover:bg-[#FFC400] text-[#FFC400] hover:text-black border border-[#FFC400]/40 rounded-xl text-xs font-bold flex flex-row items-center justify-center space-x-1.5 transition-all uppercase tracking-wider"
                     >
-                      <span className="text-lg">🟨</span>
-                      <span>Cartão Amarelo</span>
+                      <span className="text-base">🟨</span>
+                      <span>Amarelo</span>
                     </button>
 
                     {/* Cartão Vermelho */}
                     <button
                       onClick={() => handleRegisterEvent('CARTAO_VERMELHO')}
-                      className="p-3 bg-[#FF1744]/20 hover:bg-[#FF1744] text-[#FF1744] hover:text-white border border-[#FF1744]/40 rounded-xl text-xs font-bold flex flex-col items-center space-y-1 transition-all uppercase tracking-wider"
+                      className="p-2.5 bg-[#FF1744]/20 hover:bg-[#FF1744] text-[#FF1744] hover:text-white border border-[#FF1744]/40 rounded-xl text-xs font-bold flex flex-row items-center justify-center space-x-1.5 transition-all uppercase tracking-wider"
                     >
-                      <span className="text-lg">🟥</span>
-                      <span>Cartão Vermelho</span>
+                      <span className="text-base">🟥</span>
+                      <span>Vermelho</span>
                     </button>
 
                     {/* Destaque */}
                     <button
                       onClick={() => handleRegisterEvent('DESTAQUE')}
-                      className="p-3 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 rounded-xl text-xs font-bold flex flex-col items-center space-y-1 transition-all uppercase tracking-wider"
+                      className="p-2.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 rounded-xl text-xs font-bold flex flex-row items-center justify-center space-x-1.5 transition-all uppercase tracking-wider"
                     >
-                      <span className="text-lg">⭐</span>
-                      <span>Craque do Jogo</span>
+                      <span className="text-base">⭐</span>
+                      <span>Craque</span>
                     </button>
                   </div>
                 </div>
@@ -839,14 +875,33 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleExportSumulaImage}
+                  disabled={exportingSumula !== null}
+                  className="px-3.5 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase font-mono tracking-wider flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(255,107,26,0.3)] disabled:opacity-50"
+                >
+                  <Image className="w-4 h-4" />
+                  <span>{exportingSumula === 'image' ? 'Gerando...' : '📸 Imagem Feed'}</span>
+                </button>
+
+                <button
+                  onClick={handleExportSumulaPdf}
+                  disabled={exportingSumula !== null}
+                  className="px-3.5 py-2 bg-[#0F1115] hover:bg-[#222632] text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{exportingSumula === 'pdf' ? 'Gerando...' : '📄 Baixar PDF'}</span>
+                </button>
+
                 <button
                   onClick={() => window.print()}
-                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase font-mono tracking-wider flex items-center space-x-2 transition-all shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                  className="px-3.5 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs uppercase font-mono font-bold tracking-wider flex items-center space-x-1.5 transition-all"
                 >
-                  <Printer className="w-4 h-4" />
-                  <span>Imprimir / Exportar PDF</span>
+                  <Printer className="w-4 h-4 text-[#FF6B1A]" />
+                  <span>Imprimir A4</span>
                 </button>
+
                 <button
                   onClick={() => setIsA4PreviewOpen(false)}
                   className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] rounded-xl border border-[#262933]"
@@ -858,7 +913,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
 
             {/* Document Render Scroll Area */}
             <div className="flex-1 overflow-y-auto bg-gray-900 p-4 rounded-2xl border border-[#262933] flex justify-center">
-              <div className="w-full max-w-[210mm] shadow-2xl bg-white rounded">
+              <div id="sumula-a4-document-container" className="w-full max-w-[210mm] shadow-2xl bg-white rounded">
                 <SumulaA4PrintDocument
                   match={match}
                   mandanteRoster={mandanteRoster}

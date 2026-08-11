@@ -7,11 +7,13 @@ import React, { useEffect, useState } from 'react';
 import { Partida, Jogador } from '../types';
 import { generateGroupStageFixtures, generatePlayoffs } from '../services/fixtureService';
 import { query } from '../services/db';
-import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Printer, Layers, X, Shield } from 'lucide-react';
+import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Printer, Layers, X, Shield, Download, Image, FileText } from 'lucide-react';
+import { exportElementAsImage, exportElementAsPdf } from '../utils/exportUtils';
 
 interface FixturesBracketsViewProps {
   categoriaId: number;
   onNavigateToMatch: (matchId: number) => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 interface PrintableMatch extends Partida {
@@ -22,19 +24,57 @@ interface PrintableMatch extends Partida {
 export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   categoriaId,
   onNavigateToMatch,
+  onNavigateTab,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'grupos' | 'playoffs'>('grupos');
   const [matches, setMatches] = useState<Partida[]>([]);
   const [playoffMatches, setPlayoffMatches] = useState<Partida[]>([]);
   const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Draw Format State
   const [drawFormat, setDrawFormat] = useState<'UNICO' | 'DUAS_CHAVES'>('UNICO');
 
-  // Print Fixtures Modal
+  // Print Fixtures Modal State
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printableMatches, setPrintableMatches] = useState<PrintableMatch[]>([]);
   const [loadingPrintData, setLoadingPrintData] = useState(false);
+
+  // Export state
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleExportFeedImage = async () => {
+    try {
+      setExporting('image');
+      await exportElementAsImage('printable-confrontos-sheet', 'arena-romano-confrontos-feed.png');
+    } catch (e: any) {
+      alert('Erro ao gerar imagem para o feed: ' + (e?.message || e));
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportMatchImage = async (matchId: number, matchIndex: number) => {
+    try {
+      setExporting(`match-${matchId}`);
+      await exportElementAsImage(`match-card-${matchId}`, `arena-romano-jogo-${matchIndex + 1}-feed.png`);
+    } catch (e: any) {
+      alert('Erro ao gerar imagem do jogo: ' + (e?.message || e));
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setExporting('pdf');
+      await exportElementAsPdf('printable-confrontos-sheet', 'arena-romano-confrontos.pdf');
+    } catch (e: any) {
+      alert('Erro ao gerar PDF: ' + (e?.message || e));
+    } finally {
+      setExporting(null);
+    }
+  };
 
   useEffect(() => {
     loadFixturesData();
@@ -80,12 +120,13 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   };
 
   const handleGenerateGroupStage = async () => {
+    setActionError(null);
     try {
       setLoading(true);
       await generateGroupStageFixtures(categoriaId, drawFormat);
       await loadFixturesData();
     } catch (e: any) {
-      alert(e.message || 'Erro ao gerar rodadas.');
+      setActionError(e?.message || 'Erro ao gerar rodadas da fase de grupos.');
       console.error(e);
     } finally {
       setLoading(false);
@@ -125,12 +166,14 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   };
 
   const handleGeneratePlayoffs = async () => {
+    setActionError(null);
     try {
       setLoading(true);
       await generatePlayoffs(categoriaId);
       await loadFixturesData();
       setActiveSubTab('playoffs');
     } catch (e: any) {
+      setActionError(e?.message || 'Erro ao gerar rodadas do mata-mata.');
       console.error(e);
     } finally {
       setLoading(false);
@@ -165,9 +208,42 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Action Error Alert Banner */}
+      {actionError && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-200 shadow-lg">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-amber-300 uppercase tracking-wide">Atenção ao Gerar Confrontos</h4>
+              <p className="text-xs text-amber-200/90 mt-0.5 font-mono font-semibold">{actionError}</p>
+              <p className="text-[11px] text-amber-300/70 mt-1">
+                Cadastre os times da categoria ou utilize o sorteio de atletas (Draft) para distribuir os jogadores nos times.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0 self-end sm:self-auto">
+            {onNavigateTab && (
+              <button
+                onClick={() => onNavigateTab('times')}
+                className="px-3.5 py-1.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all shadow-[0_0_10px_rgba(255,107,26,0.2)]"
+              >
+                Gerenciar Times
+              </button>
+            )}
+            <button
+              onClick={() => setActionError(null)}
+              className="p-1.5 text-amber-400 hover:text-white bg-amber-500/20 hover:bg-amber-500/40 rounded-xl transition-colors"
+              title="Fechar aviso"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner & Controls */}
       <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
               <Calendar className="w-5 h-5 text-[#FF6B1A]" />
@@ -178,10 +254,10 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-row flex-wrap items-center gap-2 shrink-0">
             <button
               onClick={handleOpenPrintModal}
-              className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#FF6B1A] border border-[#262933] hover:border-[#FF6B1A]/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5"
+              className="px-3.5 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#FF6B1A] border border-[#262933] hover:border-[#FF6B1A]/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5 shrink-0"
             >
               <Printer className="w-4 h-4 text-[#FF6B1A]" />
               <span>Imprimir Confrontos</span>
@@ -190,7 +266,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
             <button
               onClick={handleGenerateGroupStage}
               disabled={loading}
-              className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5"
+              className="px-3.5 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5 shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Gerar Fase de Grupos</span>
@@ -199,7 +275,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
             <button
               onClick={handleGeneratePlayoffs}
               disabled={loading}
-              className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-1.5"
+              className="px-4 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-1.5 shrink-0"
             >
               <Trophy className="w-4 h-4" />
               <span>Gerar Mata-Mata</span>
@@ -534,27 +610,49 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
           )}
         </div>
       )}
-      {/* Modal Impressão de Confrontos */}
+      {/* Modal Impressão & Exportação de Confrontos */}
       {showPrintModal && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-2 sm:p-6 overflow-y-auto print:p-0 print:bg-white print:static print:block">
           <div className="bg-[#161920] border border-[#262933] rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl print:max-h-none print:overflow-visible print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
             {/* Modal Header (Non-printable controls) */}
-            <div className="flex items-center justify-between border-b border-[#262933] pb-4 print:hidden">
+            <div className="flex flex-row items-center justify-between border-b border-[#262933] pb-4 gap-3 flex-wrap print:hidden">
               <div className="flex items-center space-x-2">
                 <Printer className="w-5 h-5 text-[#FF6B1A]" />
-                <h3 className="text-base font-black text-white uppercase tracking-tight">Tabela de Confrontos & Escalações</h3>
+                <h3 className="text-base font-black text-white uppercase tracking-tight">Exportação & Impressão de Confrontos</h3>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-row flex-wrap items-center gap-2">
+                <button
+                  onClick={handleExportFeedImage}
+                  disabled={exporting !== null}
+                  className="px-3.5 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] flex items-center space-x-1.5 transition-all disabled:opacity-50 shrink-0"
+                  title="Baixar imagem em formato PNG ideal para postar no Feed do Instagram e grupos de WhatsApp"
+                >
+                  <Image className="w-4 h-4" />
+                  <span>{exporting === 'image' ? 'Gerando...' : '📸 Imagem Feed'}</span>
+                </button>
+
+                <button
+                  onClick={handleExportPdf}
+                  disabled={exporting !== null}
+                  className="px-3.5 py-2 bg-[#0F1115] hover:bg-[#222632] text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all disabled:opacity-50 shrink-0"
+                  title="Baixar arquivo PDF com a tabela completa de confrontos"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>{exporting === 'pdf' ? 'Gerando...' : '📄 Baixar PDF'}</span>
+                </button>
+
                 <button
                   onClick={() => window.print()}
-                  className="px-4 py-2 bg-[#FF6B1A] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] flex items-center space-x-1.5"
+                  className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all shrink-0"
+                  title="Imprimir em impressora A4"
                 >
-                  <Printer className="w-4 h-4" />
-                  <span>Imprimir Folha</span>
+                  <Printer className="w-4 h-4 text-[#FF6B1A]" />
+                  <span>Imprimir A4</span>
                 </button>
+
                 <button
                   onClick={() => setShowPrintModal(false)}
-                  className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] border border-[#262933] rounded-xl"
+                  className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] border border-[#262933] rounded-xl shrink-0"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -563,10 +661,10 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
 
             {loadingPrintData ? (
               <div className="p-12 text-center text-xs font-mono text-[#8E9299] animate-pulse">
-                Carregando escalações completas para impressão...
+                Carregando escalações completas para exportação...
               </div>
             ) : (
-              <div className="space-y-8 print:space-y-6">
+              <div id="printable-confrontos-sheet" className="p-4 bg-[#0F1115] rounded-2xl space-y-8 print:bg-white print:p-0 print:space-y-6">
                 {/* Print Sheet Banner */}
                 <div className="text-center border-b border-[#262933] pb-4 print:border-black print:pb-2">
                   <div className="flex items-center justify-center space-x-2 mb-1">
@@ -574,27 +672,41 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                     <h1 className="text-2xl font-black text-white uppercase tracking-tight print:text-black">ARENA ROMANO SOCIETY</h1>
                   </div>
                   <h2 className="text-sm font-bold text-[#FF6B1A] uppercase tracking-widest font-mono print:text-black">
-                    RELATÓRIO OFICIAL DE CONFRONTOS & ESCALAÇÕES DOS TIMES
+                    TABELA OFICIAL DE CONFRONTOS & ESCALAÇÕES
                   </h2>
                 </div>
 
                 {/* Fixtures List for Print */}
                 {printableMatches.length === 0 ? (
-                  <p className="text-center text-xs text-[#8E9299] py-8 font-mono">Nenhum confronto disponível para impressão.</p>
+                  <p className="text-center text-xs text-[#8E9299] py-8 font-mono">Nenhum confronto disponível para exibição.</p>
                 ) : (
                   printableMatches.map((m, index) => (
                     <div
                       key={m.id}
-                      className="bg-[#0F1115] border border-[#262933] rounded-2xl p-5 space-y-4 print:bg-white print:border-2 print:border-black print:rounded-none print:p-4 print:break-inside-avoid"
+                      id={`match-card-${m.id}`}
+                      className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-4 print:bg-white print:border-2 print:border-black print:rounded-none print:p-4 print:break-inside-avoid"
                     >
                       {/* Match Info Bar */}
                       <div className="flex items-center justify-between border-b border-[#262933] pb-2 print:border-black">
                         <span className="text-xs font-black font-mono text-[#FF6B1A] uppercase tracking-wider print:text-black">
-                          Jogo #{index + 1} — Rodada {m.rodada} {m.grupo ? `(Chave / Grupo ${m.grupo})` : ''}
+                          Jogo #{index + 1} — Rodada {m.rodada} {m.grupo ? `(Grupo ${m.grupo})` : ''}
                         </span>
-                        <span className="text-[10px] font-mono text-[#8E9299] print:text-black font-bold">
-                          Data/Hora: {m.data_hora ? new Date(m.data_hora).toLocaleString('pt-BR') : 'A Definir'}
-                        </span>
+                        
+                        <div className="flex items-center space-x-3">
+                          <span className="text-[10px] font-mono text-[#8E9299] print:text-black font-bold">
+                            Data/Hora: {m.data_hora ? new Date(m.data_hora).toLocaleString('pt-BR') : 'A Definir'}
+                          </span>
+                          
+                          <button
+                            onClick={() => handleExportMatchImage(m.id, index)}
+                            disabled={exporting !== null}
+                            className="px-2.5 py-1 bg-[#0F1115] hover:bg-[#222632] text-[#FF6B1A] border border-[#262933] rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider flex items-center space-x-1 print:hidden"
+                            title="Exportar apenas este card de jogo em imagem PNG para feed"
+                          >
+                            <Download className="w-3 h-3" />
+                            <span>{exporting === `match-${m.id}` ? 'Gerando...' : 'Card Feed'}</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Side by side Teams & Players */}
@@ -612,9 +724,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                             {m.mandante_jogadores && m.mandante_jogadores.length > 0 ? (
                               <ul className="text-xs font-mono text-[#E0E6ED] print:text-black space-y-1">
                                 {m.mandante_jogadores.map((j) => (
-                                  <li key={j.id} className="flex items-center justify-between bg-[#161920] px-2 py-1 rounded print:bg-gray-100">
+                                  <li key={j.id} className="flex items-center justify-between bg-[#0F1115] px-2 py-1 rounded border border-[#262933]/50 print:bg-gray-100 print:border-none">
                                     <span className="font-semibold">{j.nome}</span>
-                                    <span className="text-[10px] text-[#8E9299] print:text-black">Pote #{j.camisa_posicao}</span>
+                                    <span className="text-[10px] text-[#FF6B1A] print:text-black font-bold">Pote #{j.camisa_posicao}</span>
                                   </li>
                                 ))}
                               </ul>
@@ -637,9 +749,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                             {m.visitante_jogadores && m.visitante_jogadores.length > 0 ? (
                               <ul className="text-xs font-mono text-[#E0E6ED] print:text-black space-y-1">
                                 {m.visitante_jogadores.map((j) => (
-                                  <li key={j.id} className="flex items-center justify-between bg-[#161920] px-2 py-1 rounded print:bg-gray-100">
+                                  <li key={j.id} className="flex items-center justify-between bg-[#0F1115] px-2 py-1 rounded border border-[#262933]/50 print:bg-gray-100 print:border-none">
                                     <span className="font-semibold">{j.nome}</span>
-                                    <span className="text-[10px] text-[#8E9299] print:text-black">Pote #{j.camisa_posicao}</span>
+                                    <span className="text-[10px] text-[#FF6B1A] print:text-black font-bold">Pote #{j.camisa_posicao}</span>
                                   </li>
                                 ))}
                               </ul>
