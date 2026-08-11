@@ -7,6 +7,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ArtilhariaItem, ClassificacaoItem, DestaqueItem, Suspensao } from '../types';
 import { query } from '../services/db';
 import { Trophy, ShieldAlert, Award, AlertTriangle, Users, Flame, Share2, Download, Sparkles, X, Shield, Image, Printer } from 'lucide-react';
+import { exportElementAsImage } from '../utils/exportUtils';
 
 interface StandingsArtilhariaViewProps {
   categoriaId: number;
@@ -24,8 +25,20 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
   const [isExportingPost, setIsExportingPost] = useState(false);
   const postCardRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadPostImage = () => {
-    window.print();
+  const handleDownloadPostImage = async () => {
+    try {
+      setIsExportingPost(true);
+      await exportElementAsImage(
+        'standings-social-post-card',
+        'arena-romano-classificacao-feed.png',
+        '#0F1115'
+      );
+    } catch (err: any) {
+      console.error('Erro ao gerar imagem de classificação:', err);
+      alert('Erro ao gerar imagem da classificação: ' + (err?.message || err));
+    } finally {
+      setIsExportingPost(false);
+    }
   };
 
   useEffect(() => {
@@ -385,6 +398,7 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
             {/* Social Post Visual Card Container (Targeted by html-to-image) */}
             <div
               ref={postCardRef}
+              id="standings-social-post-card"
               className="bg-gradient-to-br from-[#0F1115] via-[#161920] to-[#0D0E12] border-2 border-[#FF6B1A]/40 rounded-3xl p-6 space-y-6 shadow-[0_0_30px_rgba(255,107,26,0.2)] text-white relative overflow-hidden"
               style={{ width: '100%' }}
             >

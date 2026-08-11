@@ -80,7 +80,7 @@ export async function getDb(): Promise<any> {
   patchDbMethods(dbInstance);
   dbInstance.exec('PRAGMA foreign_keys = ON;');
   await initDatabaseSchema(dbInstance);
-  await seedFasesIfEmpty(dbInstance);
+  await seedFasesIfEmpty();
   await seedUsersIfEmpty(dbInstance);
   persistDatabase();
 
@@ -129,7 +129,7 @@ export async function resetDatabaseToSeed(): Promise<any> {
   }
   db.run('PRAGMA foreign_keys = ON;');
 
-  await seedFasesIfEmpty(db);
+  await seedFasesIfEmpty();
   await seedUsersIfEmpty(db);
   persistDatabase();
   return db;
