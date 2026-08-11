@@ -2,7 +2,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 /**
- * Helper to convert any oklch(...) occurrences in a CSS style string to browser-computed rgb/rgba values or a safe fallback
+ * Helper to convert any oklch(...) occurrences in a CSS style string to browser-computed rgb/rgba values
  */
 function convertOklchInString(str: string): string {
   if (!str || !str.includes('oklch')) return str;
@@ -13,69 +13,76 @@ function convertOklchInString(str: string): string {
       document.body.appendChild(dummy);
       const computed = window.getComputedStyle(dummy).color;
       document.body.removeChild(dummy);
-      if (computed && !computed.includes('oklch')) {
+      if (computed && !computed.includes('oklch') && computed !== '') {
         return computed;
       }
     } catch (e) {}
-    return 'rgba(128, 128, 128, 0.5)';
+    return 'rgb(120, 120, 120)';
   });
 }
 
 /**
- * Sanitizes cloned document for html2canvas by converting all oklch() colors to standard rgb/rgba/hex
+ * Sanitizes cloned document for html2canvas by replacing all <style> and <link> tags
+ * containing oklch() with clean <style> tags using converted rgb/rgba colors.
  */
 function sanitizeClonedDocForCanvas(clonedDoc: Document) {
-  // 1. Replace oklch inside <style> tags
+  // 1. Convert all <style> tags
   try {
-    const styleTags = clonedDoc.querySelectorAll('style');
+    const styleTags = Array.from(clonedDoc.querySelectorAll('style'));
     styleTags.forEach((styleTag) => {
-      if (styleTag.textContent && styleTag.textContent.includes('oklch')) {
-        styleTag.textContent = convertOklchInString(styleTag.textContent);
+      const originalText = styleTag.textContent || '';
+      if (originalText.includes('oklch')) {
+        const convertedText = convertOklchInString(originalText);
+        const newStyle = clonedDoc.createElement('style');
+        newStyle.textContent = convertedText;
+        if (styleTag.parentNode) {
+          styleTag.parentNode.replaceChild(newStyle, styleTag);
+        }
       }
     });
   } catch (e) {}
 
-  // 2. Process elements and computed styles
+  // 2. Convert all <link rel="stylesheet"> tags into inline <style> tags without oklch
   try {
-    const allElements = clonedDoc.querySelectorAll('*');
-    const colorProps = [
-      'color',
-      'backgroundColor',
-      'borderColor',
-      'borderTopColor',
-      'borderRightColor',
-      'borderBottomColor',
-      'borderLeftColor',
-      'outlineColor',
-      'fill',
-      'stroke',
-    ];
-
-    allElements.forEach((node) => {
-      if (!(node instanceof HTMLElement || node instanceof SVGElement)) return;
-      const el = node as HTMLElement;
-
-      // Check inline style cssText
-      if (el.style && el.style.cssText && el.style.cssText.includes('oklch')) {
-        el.style.cssText = convertOklchInString(el.style.cssText);
-      }
-
-      // Check computed styles
+    const linkTags = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"]'));
+    linkTags.forEach((link) => {
       try {
-        const computed = window.getComputedStyle(el);
-        colorProps.forEach((prop) => {
-          const val = computed.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase());
-          if (val && val.includes('oklch')) {
-            const converted = convertOklchInString(val);
-            (el.style as any)[prop] = converted;
-          }
-        });
+        const href = (link as HTMLLinkElement).href;
+        for (let i = 0; i < document.styleSheets.length; i++) {
+          const sheet = document.styleSheets[i];
+          if (sheet.href === href) {
+            let cssText = '';
+            try {
+              const rules = sheet.cssRules || sheet.rules;
+              for (let j = 0; j < rules.length; j++) {
+                cssText += rules[j].cssText + '\n';
+              }
+            } catch (ruleErr) {}
 
-        const boxShadow = computed.boxShadow;
-        if (boxShadow && boxShadow.includes('oklch')) {
-          el.style.boxShadow = convertOklchInString(boxShadow);
+            if (cssText) {
+              const newStyle = clonedDoc.createElement('style');
+              newStyle.textContent = convertOklchInString(cssText);
+              if (link.parentNode) {
+                link.parentNode.replaceChild(newStyle, link);
+              }
+            }
+            break;
+          }
         }
-      } catch (e) {}
+      } catch (linkErr) {}
+    });
+  } catch (e) {}
+
+  // 3. Convert any inline style attributes with oklch
+  try {
+    const elementsWithInlineStyle = clonedDoc.querySelectorAll('[style*="oklch"]');
+    elementsWithInlineStyle.forEach((node) => {
+      if (node instanceof HTMLElement || node instanceof SVGElement) {
+        const el = node as HTMLElement;
+        if (el.style && el.style.cssText && el.style.cssText.includes('oklch')) {
+          el.style.cssText = convertOklchInString(el.style.cssText);
+        }
+      }
     });
   } catch (e) {}
 }
@@ -99,8 +106,6 @@ export async function exportElementAsImage(
     allowTaint: true,
     backgroundColor: bgColor,
     logging: false,
-    windowWidth: element.scrollWidth,
-    windowHeight: element.scrollHeight,
     onclone: (clonedDoc) => {
       sanitizeClonedDocForCanvas(clonedDoc);
     },
