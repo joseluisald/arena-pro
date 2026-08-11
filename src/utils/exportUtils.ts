@@ -4,7 +4,11 @@ import { jsPDF } from 'jspdf';
 /**
  * Captures an HTML element and downloads it as a PNG image for feeds/social media
  */
-export async function exportElementAsImage(elementId: string, filename: string = 'confrontos-feed.png'): Promise<void> {
+export async function exportElementAsImage(
+  elementId: string, 
+  filename: string = 'confrontos-feed.png',
+  bgColor: string = '#FFFFFF'
+): Promise<void> {
   const element = document.getElementById(elementId);
   if (!element) {
     throw new Error(`Element with id '${elementId}' not found.`);
@@ -15,7 +19,7 @@ export async function exportElementAsImage(elementId: string, filename: string =
     scale: 2, // High resolution for Retina/Feed
     useCORS: true,
     allowTaint: true,
-    backgroundColor: '#0F1115',
+    backgroundColor: bgColor,
     logging: false,
     windowWidth: element.scrollWidth,
     windowHeight: element.scrollHeight,

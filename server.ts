@@ -144,15 +144,12 @@ function initDb() {
     db.exec("ALTER TABLE partidas ADD COLUMN grupo TEXT DEFAULT NULL;");
   } catch (e) {}
 
-  // Seed fases if empty
-  const fasesCount = db.prepare('SELECT COUNT(*) as count FROM fases').get() as { count: number };
-  if (fasesCount.count === 0) {
-    const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
-    const insertFase = db.prepare('INSERT INTO fases (id, nome) VALUES (?, ?)');
-    fases.forEach((nome, idx) => {
-      insertFase.run(idx + 1, nome);
-    });
-  }
+  // Seed default fases
+  const insertFase = db.prepare('INSERT OR IGNORE INTO fases (id, nome) VALUES (?, ?)');
+  const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
+  fases.forEach((nome, idx) => {
+    insertFase.run(idx + 1, nome);
+  });
 
   // Seed usuarios if empty
   const userCount = db.prepare('SELECT COUNT(*) as count FROM usuarios').get() as { count: number };
@@ -263,7 +260,7 @@ async function startServer() {
       db.exec('PRAGMA foreign_keys = ON;');
 
       const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
-      const insertFase = db.prepare('INSERT INTO fases (id, nome) VALUES (?, ?)');
+      const insertFase = db.prepare('INSERT OR IGNORE INTO fases (id, nome) VALUES (?, ?)');
       fases.forEach((nome, idx) => {
         insertFase.run(idx + 1, nome);
       });

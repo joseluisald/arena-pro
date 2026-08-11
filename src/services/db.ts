@@ -334,17 +334,12 @@ export async function initDatabaseSchema(db: any) {
 /**
  * Seed initial tournament match phases
  */
-async function seedFasesIfEmpty(db: any) {
+export async function seedFasesIfEmpty(): Promise<void> {
   try {
-    const res = await query<{ count: number }>('SELECT COUNT(*) as count FROM fases;');
-    const count = (res[0]?.count as number) || 0;
-
-    if (count === 0) {
-      const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
-      fases.forEach((nome, idx) => {
-        db.run('INSERT INTO fases (id, nome) VALUES (?, ?);', [idx + 1, nome]);
-      });
-    }
+    await runQuery("INSERT OR IGNORE INTO fases (id, nome) VALUES (1, 'Fase de Grupos');");
+    await runQuery("INSERT OR IGNORE INTO fases (id, nome) VALUES (2, 'Quartas de Final');");
+    await runQuery("INSERT OR IGNORE INTO fases (id, nome) VALUES (3, 'Semifinal');");
+    await runQuery("INSERT OR IGNORE INTO fases (id, nome) VALUES (4, 'Final');");
   } catch (e) {
     console.error('Erro ao inicializar fases:', e);
   }
@@ -428,8 +423,8 @@ export async function updateCategoria(id: number, nome: string): Promise<void> {
 }
 
 export async function deleteCategoria(id: number): Promise<void> {
-  await runQuery(`DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
-  await runQuery(`DELETE FROM eventos_partida WHERE partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id]);
+  await runQuery(`DELETE FROM suspensoes WHERE jogador_id IN (SELECT id FROM jogadores WHERE categoria_id = ?) OR partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id, id]);
+  await runQuery(`DELETE FROM eventos_partida WHERE jogador_id IN (SELECT id FROM jogadores WHERE categoria_id = ?) OR partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id, id]);
   await runQuery(`DELETE FROM partidas WHERE categoria_id = ?;`, [id]);
   await runQuery(`DELETE FROM jogadores WHERE categoria_id = ?;`, [id]);
   await runQuery(`DELETE FROM times WHERE categoria_id = ?;`, [id]);
