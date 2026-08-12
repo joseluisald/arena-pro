@@ -342,10 +342,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={() => handleSelectTab('sql-lab')}
                   className="px-2 py-1 bg-[#161920] hover:bg-[#222632] text-[#8E9299] hover:text-white rounded-lg transition-colors flex items-center space-x-1"
-                  title="Abrir Ferramentas Firestore"
+                  title="Abrir Ferramentas SQLite"
                 >
                   <Database className="w-3 h-3 text-[#FF6B1A]" />
-                  <span>Firestore</span>
+                  <span>SQLite</span>
                 </button>
 
                 <button

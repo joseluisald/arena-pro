@@ -23,7 +23,7 @@ export const SqlSchemaLabView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `torneio_society_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `torneio_society_backup_${new Date().toISOString().slice(0, 10)}.sqlite`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -32,7 +32,7 @@ export const SqlSchemaLabView: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       importSqliteFile(file).then(() => {
-        setResetSuccessMessage('Backup Firebase Firestore restaurado com sucesso!');
+        setResetSuccessMessage('Arquivo .sqlite restaurado com sucesso!');
         setTimeout(() => window.location.reload(), 1000);
       });
     }
