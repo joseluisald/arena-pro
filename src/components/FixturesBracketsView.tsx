@@ -4,21 +4,15 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Partida, Jogador } from '../types';
+import { Partida } from '../types';
 import { generateGroupStageFixtures, generatePlayoffs } from '../services/fixtureService';
 import { query } from '../services/db';
-import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Printer, Layers, X, Shield, Download, Image, FileText } from 'lucide-react';
-import { exportElementAsImage, exportElementAsPdf } from '../utils/exportUtils';
+import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Layers, X, Shield } from 'lucide-react';
 
 interface FixturesBracketsViewProps {
   categoriaId: number;
   onNavigateToMatch: (matchId: number) => void;
   onNavigateTab?: (tab: string) => void;
-}
-
-interface PrintableMatch extends Partida {
-  mandante_jogadores?: Jogador[];
-  visitante_jogadores?: Jogador[];
 }
 
 export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
@@ -35,60 +29,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   // Draw Format State
   const [drawFormat, setDrawFormat] = useState<'UNICO' | 'DUAS_CHAVES'>('UNICO');
 
-  // Print Fixtures Modal State
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printableMatches, setPrintableMatches] = useState<PrintableMatch[]>([]);
-  const [loadingPrintData, setLoadingPrintData] = useState(false);
 
-  // Export state
-  const [exporting, setExporting] = useState<string | null>(null);
-
-  const handleExportFeedImage = async () => {
-    try {
-      setExporting('image');
-      await exportElementAsImage('printable-confrontos-sheet', 'arena-romano-confrontos-feed.png');
-    } catch (e: any) {
-      alert('Erro ao gerar imagem para o feed: ' + (e?.message || e));
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const handleExportGroupFeedImage = async (groupKey: string) => {
-    try {
-      setExporting(`group-${groupKey}`);
-      await exportElementAsImage(
-        `group-summary-feed-${groupKey}`,
-        `arena-romano-feed-grupo-${groupKey.toLowerCase()}.png`
-      );
-    } catch (e: any) {
-      alert('Erro ao gerar imagem do grupo: ' + (e?.message || e));
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const handleExportMatchImage = async (matchId: number, matchIndex: number) => {
-    try {
-      setExporting(`match-${matchId}`);
-      await exportElementAsImage(`match-card-${matchId}`, `arena-romano-jogo-${matchIndex + 1}-feed.png`);
-    } catch (e: any) {
-      alert('Erro ao gerar imagem do jogo: ' + (e?.message || e));
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const handleExportPdf = async () => {
-    try {
-      setExporting('pdf');
-      await exportElementAsPdf('printable-confrontos-sheet', 'arena-romano-confrontos.pdf');
-    } catch (e: any) {
-      alert('Erro ao gerar PDF: ' + (e?.message || e));
-    } finally {
-      setExporting(null);
-    }
-  };
 
   useEffect(() => {
     loadFixturesData();
@@ -144,38 +85,6 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
       console.error(e);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOpenPrintModal = async () => {
-    setLoadingPrintData(true);
-    setShowPrintModal(true);
-
-    try {
-      const allPlayers = await query<Jogador>(
-        `SELECT j.*, t.nome as time_nome FROM jogadores j JOIN times t ON j.time_id = t.id WHERE t.categoria_id = ?;`,
-        [categoriaId]
-      );
-
-      const playersByTeam: Record<number, Jogador[]> = {};
-      allPlayers.forEach((p) => {
-        if (p.time_id) {
-          if (!playersByTeam[p.time_id]) playersByTeam[p.time_id] = [];
-          playersByTeam[p.time_id].push(p);
-        }
-      });
-
-      const enriched: PrintableMatch[] = matches.map((m) => ({
-        ...m,
-        mandante_jogadores: playersByTeam[m.time_mandante_id] || [],
-        visitante_jogadores: playersByTeam[m.time_visitante_id] || [],
-      }));
-
-      setPrintableMatches(enriched);
-    } catch (err) {
-      console.error('Erro ao carregar dados para impressão:', err);
-    } finally {
-      setLoadingPrintData(false);
     }
   };
 
@@ -264,19 +173,11 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
               <h2 className="text-xl font-black text-white uppercase tracking-tight">Gerador de Confrontos & Mata-Mata</h2>
             </div>
             <p className="text-xs text-[#8E9299] mt-1 max-w-xl">
-              Geração de tabela em formato Único (Todos contra Todos) ou Duas Chaves (Grupo A e Grupo B) com impressão detalhada das escalações.
+              Geração de tabela em formato Único (Todos contra Todos) ou Duas Chaves (Grupo A e Grupo B).
             </p>
           </div>
 
           <div className="flex flex-row flex-wrap items-center gap-2 shrink-0">
-            <button
-              onClick={handleOpenPrintModal}
-              className="px-3.5 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#FF6B1A] border border-[#262933] hover:border-[#FF6B1A]/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5 shrink-0"
-            >
-              <Printer className="w-4 h-4 text-[#FF6B1A]" />
-              <span>Imprimir Confrontos</span>
-            </button>
-
             <button
               onClick={handleGenerateGroupStage}
               disabled={loading}
@@ -622,256 +523,6 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
               ))}
             </div>
           )}
-        </div>
-      )}
-      {/* Modal Impressão & Exportação de Confrontos */}
-      {showPrintModal && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-2 sm:p-6 overflow-y-auto print:p-0 print:bg-white print:static print:block">
-          <div className="bg-[#161920] border border-[#262933] rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl print:max-h-none print:overflow-visible print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
-            {/* Modal Header (Non-printable controls) */}
-            <div className="flex flex-row items-center justify-between border-b border-[#262933] pb-4 gap-3 flex-wrap print:hidden">
-              <div className="flex items-center space-x-2">
-                <Printer className="w-5 h-5 text-[#FF6B1A]" />
-                <h3 className="text-base font-black text-white uppercase tracking-tight">Exportação & Impressão de Confrontos</h3>
-              </div>
-              <div className="flex flex-row flex-wrap items-center gap-2">
-                <button
-                  onClick={handleExportFeedImage}
-                  disabled={exporting !== null}
-                  className="px-3.5 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] flex items-center space-x-1.5 transition-all disabled:opacity-50 shrink-0"
-                  title="Baixar imagem em formato PNG ideal para postar no Feed do Instagram e grupos de WhatsApp"
-                >
-                  <Image className="w-4 h-4" />
-                  <span>{exporting === 'image' ? 'Gerando...' : '📸 Imagem Feed'}</span>
-                </button>
-
-                <button
-                  onClick={handleExportPdf}
-                  disabled={exporting !== null}
-                  className="px-3.5 py-2 bg-[#0F1115] hover:bg-[#222632] text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all disabled:opacity-50 shrink-0"
-                  title="Baixar arquivo PDF com a tabela completa de confrontos"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>{exporting === 'pdf' ? 'Gerando...' : '📄 Baixar PDF'}</span>
-                </button>
-
-                <button
-                  onClick={() => window.print()}
-                  className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all shrink-0"
-                  title="Imprimir em impressora A4"
-                >
-                  <Printer className="w-4 h-4 text-[#FF6B1A]" />
-                  <span>Imprimir A4</span>
-                </button>
-
-                <button
-                  onClick={() => setShowPrintModal(false)}
-                  className="p-2 text-[#8E9299] hover:text-white bg-[#0F1115] border border-[#262933] rounded-xl shrink-0"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {loadingPrintData ? (
-              <div className="p-12 text-center text-xs font-mono text-[#8E9299] animate-pulse">
-                Carregando escalações completas para exportação...
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {/* SEÇÃO: IMAGEM FEED POR GRUPO (COMPACTA, SEM JOGADORES) */}
-                <div className="space-y-4 print:hidden border-b border-[#262933] pb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Image className="w-5 h-5 text-[#FF6B1A]" />
-                      <h4 className="text-sm font-black text-white uppercase tracking-wider">
-                        📸 Imagens Compactas para Feed (por Grupo / Sem Escalações)
-                      </h4>
-                    </div>
-                    <span className="text-[11px] font-mono text-[#8E9299]">Ideal para Instagram & WhatsApp</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {Array.from(new Set<string>(printableMatches.map((m) => m.grupo || 'Geral'))).sort().map((gKey: string) => {
-                      const gMatches = printableMatches.filter((m) => (m.grupo || 'Geral') === gKey);
-                      return (
-                        <div key={gKey} className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#FF6B1A] uppercase tracking-wider font-mono">
-                              {gKey === 'Geral' || gKey === 'A' || gKey === 'B' ? `Tabela Grupo ${gKey}` : `Grupo ${gKey}`}
-                            </span>
-                            <button
-                              onClick={() => handleExportGroupFeedImage(gKey)}
-                              disabled={exporting !== null}
-                              className="px-3 py-1.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase font-mono tracking-wider shadow-md flex items-center space-x-1.5 transition-all disabled:opacity-50"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>{exporting === `group-${gKey}` ? 'Gerando...' : `Baixar Imagem Feed (${gKey})`}</span>
-                            </button>
-                          </div>
-
-                          {/* Captured Container on White Background */}
-                          <div
-                            id={`group-summary-feed-${gKey}`}
-                            className="bg-white text-black p-5 rounded-2xl border-4 border-[#FF6B1A] space-y-4 shadow-xl font-sans"
-                          >
-                            {/* Banner Header */}
-                            <div className="text-center border-b-2 border-black pb-3">
-                              <div className="flex items-center justify-center space-x-2 mb-1">
-                                <Shield className="w-6 h-6 text-[#FF6B1A]" />
-                                <h1 className="text-xl font-black text-black uppercase tracking-tight">ARENA ROMANO SOCIETY</h1>
-                              </div>
-                              <h2 className="text-xs font-black text-[#FF6B1A] uppercase tracking-widest font-mono">
-                                {gKey === 'A' || gKey === 'B' ? `CONFRONTOS — GRUPO ${gKey}` : 'TABELA OFICIAL DE CONFRONTOS'}
-                              </h2>
-                            </div>
-
-                            {/* Matches Compact Table (No Players) */}
-                            <div className="space-y-2">
-                              {gMatches.map((m) => (
-                                <div
-                                  key={m.id}
-                                  className="bg-gray-50 border border-gray-300 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs"
-                                >
-                                  <div className="flex items-center space-x-2 shrink-0">
-                                    <span className="px-2 py-0.5 bg-black text-white font-mono font-black rounded text-[10px] uppercase">
-                                      {m.rodada}ª ROD
-                                    </span>
-                                    <span className="text-[10px] font-mono text-gray-600 font-bold">
-                                      {m.data_hora ? new Date(m.data_hora).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'A Definir'}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center space-x-2 font-black text-xs text-gray-900 text-center">
-                                    <span className="truncate max-w-[90px]">{m.time_mandante_nome}</span>
-                                    <span className="px-1.5 py-0.5 bg-orange-500 text-white font-mono text-[10px] rounded font-bold">
-                                      {m.status === 'CONCLUIDO' ? `${m.gols_mandante} x ${m.gols_visitante}` : 'VS'}
-                                    </span>
-                                    <span className="truncate max-w-[90px]">{m.time_visitante_nome}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Footer */}
-                            <div className="pt-2 text-center text-[10px] font-mono font-bold text-gray-500 border-t border-gray-200 uppercase tracking-widest">
-                              Arena Romano Society • Tabela Oficial
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* SEÇÃO: RELAÇÃO DE TUDO (RELAÇÃO COMPLETA EM BRANCO) */}
-                <div
-                  id="printable-confrontos-sheet"
-                  className="p-6 bg-white text-black rounded-2xl space-y-8 border-2 border-gray-300 shadow-sm print:bg-white print:p-0 print:border-none print:space-y-6"
-                >
-                  {/* Print Sheet Banner */}
-                  <div className="text-center border-b-2 border-black pb-4 print:pb-2">
-                    <div className="flex items-center justify-center space-x-2 mb-1">
-                      <Shield className="w-7 h-7 text-[#FF6B1A]" />
-                      <h1 className="text-2xl font-black text-black uppercase tracking-tight">ARENA ROMANO SOCIETY</h1>
-                    </div>
-                    <h2 className="text-sm font-extrabold text-[#FF6B1A] uppercase tracking-widest font-mono">
-                      TABELA OFICIAL DE CONFRONTOS & ESCALAÇÕES
-                    </h2>
-                  </div>
-
-                  {/* Fixtures List for Print */}
-                  {printableMatches.length === 0 ? (
-                    <p className="text-center text-xs text-gray-500 py-8 font-mono">Nenhum confronto disponível para exibição.</p>
-                  ) : (
-                    printableMatches.map((m, index) => (
-                      <div
-                        key={m.id}
-                        id={`match-card-${m.id}`}
-                        className="bg-white border-2 border-gray-300 rounded-xl p-5 space-y-4 text-black shadow-sm print:border-2 print:border-black print:rounded-none print:p-4 print:break-inside-avoid"
-                      >
-                        {/* Match Info Bar */}
-                        <div className="flex items-center justify-between border-b-2 border-gray-200 pb-2.5 print:border-black">
-                          <span className="text-xs font-black font-mono text-[#FF6B1A] uppercase tracking-wider">
-                            Jogo #{index + 1} — Rodada {m.rodada} {m.grupo ? `(Grupo ${m.grupo})` : ''}
-                          </span>
-                          
-                          <div className="flex items-center space-x-3">
-                            <span className="text-[11px] font-mono text-gray-700 font-bold">
-                              Data/Hora: {m.data_hora ? new Date(m.data_hora).toLocaleString('pt-BR') : 'A Definir'}
-                            </span>
-                            
-                            <button
-                              onClick={() => handleExportMatchImage(m.id, index)}
-                              disabled={exporting !== null}
-                              className="px-2.5 py-1 bg-gray-100 hover:bg-orange-500 hover:text-white text-gray-800 border border-gray-300 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider flex items-center space-x-1 print:hidden transition-colors"
-                              title="Exportar card individual em imagem PNG com fundo branco para feed"
-                            >
-                              <Download className="w-3 h-3" />
-                              <span>{exporting === `match-${m.id}` ? 'Gerando...' : 'Card Feed'}</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Side by side Teams & Players */}
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* Mandante */}
-                          <div className="border-r border-gray-300 pr-4 print:border-black space-y-2">
-                            <div className="flex items-center space-x-2 mb-2 bg-gray-100 p-2 rounded-lg border border-gray-200">
-                              <span className="text-xl">{m.time_mandante_brasao || '🛡️'}</span>
-                              <span className="text-sm font-black text-gray-900 uppercase">{m.time_mandante_nome}</span>
-                              <span className="text-[10px] font-mono text-gray-600 font-bold">(Mandante)</span>
-                            </div>
-
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-mono font-bold uppercase text-gray-700">Atletas Inscritos:</span>
-                              {m.mandante_jogadores && m.mandante_jogadores.length > 0 ? (
-                                <ul className="text-xs font-mono text-gray-900 space-y-1">
-                                  {m.mandante_jogadores.map((j) => (
-                                    <li key={j.id} className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded border border-gray-200">
-                                      <span className="font-semibold text-gray-900">{j.nome}</span>
-                                      <span className="text-[10px] text-[#FF6B1A] font-bold">Pote #{j.camisa_posicao}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-[11px] text-gray-500 italic">Nenhum jogador cadastrado neste time.</p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Visitante */}
-                          <div className="space-y-2 pl-2">
-                            <div className="flex items-center space-x-2 mb-2 bg-gray-100 p-2 rounded-lg border border-gray-200">
-                              <span className="text-xl">{m.time_visitante_brasao || '🛡️'}</span>
-                              <span className="text-sm font-black text-gray-900 uppercase">{m.time_visitante_nome}</span>
-                              <span className="text-[10px] font-mono text-gray-600 font-bold">(Visitante)</span>
-                            </div>
-
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-mono font-bold uppercase text-gray-700">Atletas Inscritos:</span>
-                              {m.visitante_jogadores && m.visitante_jogadores.length > 0 ? (
-                                <ul className="text-xs font-mono text-gray-900 space-y-1">
-                                  {m.visitante_jogadores.map((j) => (
-                                    <li key={j.id} className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded border border-gray-200">
-                                      <span className="font-semibold text-gray-900">{j.nome}</span>
-                                      <span className="text-[10px] text-[#FF6B1A] font-bold">Pote #{j.camisa_posicao}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-[11px] text-gray-500 italic">Nenhum jogador cadastrado neste time.</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>
