@@ -72,9 +72,12 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
     e.preventDefault();
     if (!editingPlayer || !editPlayerName.trim()) return;
 
+    // Ensure valid team ID or explicit null
+    const validTeamId = editPlayerTeamId && Number(editPlayerTeamId) > 0 ? Number(editPlayerTeamId) : null;
+
     await runQuery(
       `UPDATE jogadores SET nome = ?, camisa_posicao = ?, time_id = ?, pago = ? WHERE id = ?;`,
-      [editPlayerName.trim(), editPlayerCamisa, editPlayerTeamId, editPlayerPaid, editingPlayer.id]
+      [editPlayerName.trim(), editPlayerCamisa, validTeamId, editPlayerPaid, editingPlayer.id]
     );
 
     setEditingPlayer(null);

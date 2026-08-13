@@ -8,7 +8,6 @@ import { Jogador, POSICOES_MAP, Time } from '../types';
 import { executeDraft, resetDraft } from '../services/draftService';
 import { query } from '../services/db';
 import { Shuffle, RotateCcw, Users, ShieldCheck, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 
 interface DraftViewProps {
   categoriaId: number;
@@ -70,11 +69,7 @@ export const DraftView: React.FC<DraftViewProps> = ({ categoriaId, onNavigateToG
       await executeDraft(categoriaId);
       await loadDraftData();
 
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
+
     } catch (e: any) {
       setErrorMsg(e.message || 'Erro ao executar sorteio');
     } finally {

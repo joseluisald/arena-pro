@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArtilhariaItem, ClassificacaoItem, DestaqueItem, Suspensao } from '../types';
 import { query } from '../services/db';
-import { Trophy, ShieldAlert, Award, AlertTriangle, Users, Flame, Share2, Download, Sparkles, X, Shield, Image, Printer } from 'lucide-react';
-import { exportElementAsImage } from '../utils/exportUtils';
+import { Trophy, ShieldAlert, Award, AlertTriangle, Users, Flame, Sparkles, X, Shield } from 'lucide-react';
 
 interface StandingsArtilhariaViewProps {
   categoriaId: number;
@@ -19,27 +18,6 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
   const [artilharia, setArtilharia] = useState<ArtilhariaItem[]>([]);
   const [suspensoes, setSuspensoes] = useState<Suspensao[]>([]);
   const [destaques, setDestaques] = useState<DestaqueItem[]>([]);
-
-  // Social Post Modal State
-  const [showPostModal, setShowPostModal] = useState(false);
-  const [isExportingPost, setIsExportingPost] = useState(false);
-  const postCardRef = useRef<HTMLDivElement>(null);
-
-  const handleDownloadPostImage = async () => {
-    try {
-      setIsExportingPost(true);
-      await exportElementAsImage(
-        'standings-social-post-card',
-        'arena-romano-classificacao-feed.png',
-        '#0F1115'
-      );
-    } catch (err: any) {
-      console.error('Erro ao gerar imagem de classificação:', err);
-      alert('Erro ao gerar imagem da classificação: ' + (err?.message || err));
-    } finally {
-      setIsExportingPost(false);
-    }
-  };
 
   useEffect(() => {
     loadData();
@@ -201,19 +179,11 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
       {/* Tab: Classificação Table */}
       {activeTab === 'classificacao' && (
         <div className="bg-[#161920] border border-[#262933] rounded-2xl overflow-hidden shadow-2xl">
-          <div className="p-4 border-b border-[#262933] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="p-4 border-b border-[#262933] flex items-center justify-between gap-3">
             <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
               <Trophy className="w-4 h-4 text-[#FFC400]" />
               <span>Tabela Oficial de Classificação</span>
             </h3>
-
-            <button
-              onClick={() => setShowPostModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-[#FF6B1A] to-[#FFC400] hover:from-[#e05a0f] hover:to-[#e0ab00] text-black font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all flex items-center space-x-2 shrink-0"
-            >
-              <Share2 className="w-4 h-4 text-black" />
-              <span>Gerar Post Social (Feeds)</span>
-            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -377,135 +347,6 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
         </div>
       )}
 
-      {/* Modal Gerador de Post para Redes Sociais */}
-      {showPostModal && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 overflow-y-auto">
-          <div className="relative bg-[#161920] border border-[#262933] rounded-3xl w-full max-w-lg p-6 space-y-6 shadow-2xl">
-            {/* Modal Controls Header */}
-            <div className="flex items-center justify-between border-b border-[#262933] pb-3">
-              <div className="flex items-center space-x-2">
-                <Image className="w-5 h-5 text-[#FF6B1A]" />
-                <h3 className="text-sm font-black text-white uppercase tracking-tight">Gerador de Card para Redes Sociais</h3>
-              </div>
-              <button
-                onClick={() => setShowPostModal(false)}
-                className="p-1.5 text-[#8E9299] hover:text-white bg-[#0F1115] border border-[#262933] rounded-xl"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Social Post Visual Card Container (Targeted by html-to-image) */}
-            <div
-              ref={postCardRef}
-              id="standings-social-post-card"
-              className="bg-gradient-to-br from-[#0F1115] via-[#161920] to-[#0D0E12] border-2 border-[#FF6B1A]/40 rounded-3xl p-6 space-y-6 shadow-[0_0_30px_rgba(255,107,26,0.2)] text-white relative overflow-hidden"
-              style={{ width: '100%' }}
-            >
-              {/* Background Decorative Element */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF6B1A]/10 rounded-full blur-2xl pointer-events-none" />
-
-              {/* Arena Logo & Header Banner */}
-              <div className="flex items-center justify-between border-b border-[#262933] pb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FF6B1A] to-[#FFC400] flex items-center justify-center shadow-[0_0_15px_rgba(255,107,26,0.4)]">
-                    <Shield className="w-7 h-7 text-black fill-black" />
-                  </div>
-                  <div>
-                    <h1 className="text-xl font-black tracking-tight text-white uppercase font-sans">ARENA ROMANO</h1>
-                    <p className="text-[10px] font-mono text-[#FF6B1A] uppercase font-bold tracking-widest">Torneio Society Oficial</p>
-                  </div>
-                </div>
-
-                <div className="text-right font-mono">
-                  <span className="px-2.5 py-1 bg-[#FF6B1A]/20 text-[#FF6B1A] border border-[#FF6B1A]/40 rounded-lg text-[10px] font-extrabold uppercase">
-                    CLASSIFICAÇÃO
-                  </span>
-                </div>
-              </div>
-
-              {/* Standings Rankings Table */}
-              <div className="space-y-2">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead>
-                    <tr className="border-b border-[#262933] text-[10px] text-[#8E9299] uppercase font-bold">
-                      <th className="py-2 px-2">#</th>
-                      <th className="py-2 px-2 font-sans">TIME</th>
-                      <th className="py-2 px-2 text-center text-[#FF6B1A]">PTS</th>
-                      <th className="py-2 px-2 text-center">J</th>
-                      <th className="py-2 px-2 text-center">V</th>
-                      <th className="py-2 px-2 text-center">SG</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#262933]/60">
-                    {standings.slice(0, 6).map((st, idx) => (
-                      <tr key={st.time_id} className={idx < 2 ? 'bg-[#FF6B1A]/5' : ''}>
-                        <td className="py-2.5 px-2 font-black text-[#FF6B1A]">{idx + 1}º</td>
-                        <td className="py-2.5 px-2 font-bold font-sans uppercase truncate max-w-[140px]">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm">{st.time_brasao_path || '🛡️'}</span>
-                            <span className="truncate">{st.time_nome}</span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-2 text-center font-black text-[#FFC400] text-sm">{st.pontos}</td>
-                        <td className="py-2.5 px-2 text-center font-bold">{st.jogos}</td>
-                        <td className="py-2.5 px-2 text-center text-[#8E9299]">{st.vitorias}</td>
-                        <td className="py-2.5 px-2 text-center font-mono font-bold text-white">{st.saldo_gols}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Top Scorer Spotlight Footer */}
-              {artilharia.length > 0 && (
-                <div className="bg-[#0F1115] border border-[#262933] rounded-2xl p-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="p-2 bg-[#FFC400]/10 border border-[#FFC400]/30 rounded-xl">
-                      <Flame className="w-5 h-5 text-[#FFC400]" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-mono text-[#8E9299] font-bold uppercase">Artilheiro do Torneio</p>
-                      <p className="text-xs font-bold text-white font-sans">{artilharia[0].jogador_nome}</p>
-                      <p className="text-[10px] text-[#8E9299]">{artilharia[0].time_nome}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg font-black text-[#FF6B1A] font-mono">{artilharia[0].gols} GOLS</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Footer Hashtag & Brand */}
-              <div className="pt-2 border-t border-[#262933] flex items-center justify-between text-[9px] font-mono text-[#8E9299]">
-                <span>#ArenaRomano #FutebolSociety</span>
-                <span>arena-romano.com</span>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end space-x-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowPostModal(false)}
-                className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase"
-              >
-                Fechar
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDownloadPostImage}
-                disabled={isExportingPost}
-                className="px-5 py-2.5 bg-gradient-to-r from-[#FF6B1A] to-[#FFC400] hover:from-[#e05a0f] hover:to-[#e0ab00] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,107,26,0.4)] flex items-center space-x-2"
-              >
-                <Download className={`w-4 h-4 ${isExportingPost ? 'animate-bounce' : ''}`} />
-                <span>{isExportingPost ? 'Gerando Imagem...' : 'Baixar Imagem (PNG)'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

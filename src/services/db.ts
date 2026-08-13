@@ -320,6 +320,12 @@ export async function initDatabaseSchema(db: any) {
   db.exec(schemaSQL);
 
   try {
+    db.exec("INSERT OR IGNORE INTO fases (id, nome) VALUES (1, 'Fase de Grupos'), (2, 'Quartas de Final'), (3, 'Semifinal'), (4, 'Final');");
+  } catch (e) {
+    // Ignore seed errors
+  }
+
+  try {
     db.exec("ALTER TABLE times ADD COLUMN grupo TEXT DEFAULT 'A';");
   } catch (e) {
     // Column already exists
@@ -423,6 +429,7 @@ export async function updateCategoria(id: number, nome: string): Promise<void> {
 }
 
 export async function deleteCategoria(id: number): Promise<void> {
+  // Pragma foreign_keys ON with ON DELETE CASCADE handles dependent tables cleanly
   await runQuery(`DELETE FROM suspensoes WHERE jogador_id IN (SELECT id FROM jogadores WHERE categoria_id = ?) OR partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id, id]);
   await runQuery(`DELETE FROM eventos_partida WHERE jogador_id IN (SELECT id FROM jogadores WHERE categoria_id = ?) OR partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`, [id, id]);
   await runQuery(`DELETE FROM partidas WHERE categoria_id = ?;`, [id]);
