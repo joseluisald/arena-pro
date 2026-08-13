@@ -13,6 +13,18 @@ export interface FixtureSummary {
 }
 
 /**
+ * Fisher-Yates shuffle algorithm
+ */
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
  * Reset / Clear all fixtures and events for a category
  */
 export async function resetGroupStageFixtures(categoria_id: number): Promise<void> {
@@ -35,19 +47,22 @@ export async function generateGroupStageFixtures(
   categoria_id: number,
   format: 'UNICO' | 'DUAS_CHAVES' = 'UNICO'
 ): Promise<FixtureSummary> {
-  // 1. Fetch teams for this category
-  const times = await query<Time>(
+  // 1. Fetch teams for this category and shuffle them for a 100% random draw
+  const fetchedTimes = await query<Time>(
     'SELECT id, nome, cor_hex, categoria_id FROM times WHERE categoria_id = ? ORDER BY id ASC;',
     [categoria_id]
   );
 
-  if (times.length < 2) {
+  if (fetchedTimes.length < 2) {
     throw new Error('É necessário ter no mínimo 2 times cadastrados na categoria para gerar os jogos.');
   }
 
-  if (format === 'DUAS_CHAVES' && times.length < 4) {
+  if (format === 'DUAS_CHAVES' && fetchedTimes.length < 4) {
     throw new Error('É necessário ter no mínimo 4 times cadastrados para dividir o torneio em Duas Chaves (Grupo A e Grupo B).');
   }
+
+  // Shuffle teams randomly so group division and round scheduling are completely randomized on every run
+  const times = shuffleArray(fetchedTimes);
 
   // Delete existing suspensions, events & matches for this category
   await runQuery(
@@ -80,7 +95,7 @@ export async function generateGroupStageFixtures(
 
     // Helper function to generate round-robin for a group
     const generateForSubGroup = async (groupLabel: string, subTimes: Time[]) => {
-      let teamList: (number | null)[] = subTimes.map((t) => t.id);
+      let teamList: (number | null)[] = shuffleArray(subTimes).map((t) => t.id);
       if (teamList.length % 2 !== 0) teamList.push(null); // BYE
 
       const totalTeams = teamList.length;
@@ -124,7 +139,7 @@ export async function generateGroupStageFixtures(
       await runQuery('UPDATE times SET grupo = ? WHERE id = ?;', ['A', t.id]);
     }
 
-    let teamList: (number | null)[] = times.map((t) => t.id);
+    let teamList: (number | null)[] = shuffleArray(times).map((t) => t.id);
     if (teamList.length % 2 !== 0) teamList.push(null);
 
     const totalTeams = teamList.length;
