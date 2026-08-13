@@ -319,46 +319,68 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Bottom Section: User Profile & Quick Database Link */}
         <div className="pt-4 border-t border-[#262933] space-y-3 mt-6">
           <p className="px-1 text-[10px] font-mono font-bold uppercase tracking-widest text-[#8E9299]">
-            Usuário Autenticado
+            {isAdminAuthenticated ? 'Administrador Autenticado' : 'Status de Acesso'}
           </p>
 
-          <div className="p-3.5 bg-[#0F1115] border border-[#262933] rounded-2xl space-y-2.5 shadow-md">
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF6B1A] to-[#FFC400] flex items-center justify-center font-black text-black shrink-0 shadow-[0_0_10px_rgba(255,107,26,0.3)]">
-                <ShieldCheck className="w-5 h-5 text-black" />
+          {isAdminAuthenticated ? (
+            <div className="p-3.5 bg-[#0F1115] border border-[#262933] rounded-2xl space-y-2.5 shadow-md">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF6B1A] to-[#FFC400] flex items-center justify-center font-black text-black shrink-0 shadow-[0_0_10px_rgba(255,107,26,0.3)]">
+                  <ShieldCheck className="w-5 h-5 text-black" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white truncate font-sans">Organizador Arena Romano</p>
+                  <p className="text-[10px] font-mono text-[#FF6B1A] truncate">Sessão Ativa</p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-white truncate font-sans">Organizador Arena Romano</p>
-                <p className="text-[10px] font-mono text-[#FF6B1A] truncate">jaldrighi@gmail.com</p>
+
+              <div className="flex items-center justify-between text-[10px] font-mono border-t border-[#262933] pt-2">
+                <span className="px-2 py-0.5 bg-[#FF6B1A]/10 text-[#FF6B1A] rounded border border-[#FF6B1A]/30 font-bold uppercase">
+                  ADMIN
+                </span>
+
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => handleSelectTab('sql-lab')}
+                    className="px-2 py-1 bg-[#161920] hover:bg-[#222632] text-[#8E9299] hover:text-white rounded-lg transition-colors flex items-center space-x-1"
+                    title="Abrir Ferramentas MySQL"
+                  >
+                    <Database className="w-3 h-3 text-[#FF6B1A]" />
+                    <span>MySQL</span>
+                  </button>
+
+                  <button
+                    onClick={onLogout}
+                    className="px-2 py-1 bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] rounded-lg transition-colors flex items-center space-x-1 font-bold"
+                    title="Sair do painel admin"
+                  >
+                    <LogOut className="w-3 h-3" />
+                    <span>Sair</span>
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div className="flex items-center justify-between text-[10px] font-mono border-t border-[#262933] pt-2">
-              <span className="px-2 py-0.5 bg-[#FF6B1A]/10 text-[#FF6B1A] rounded border border-[#FF6B1A]/30 font-bold uppercase">
-                ADMIN
-              </span>
-
-              <div className="flex items-center space-x-1">
-                <button
-                  onClick={() => handleSelectTab('sql-lab')}
-                  className="px-2 py-1 bg-[#161920] hover:bg-[#222632] text-[#8E9299] hover:text-white rounded-lg transition-colors flex items-center space-x-1"
-                  title="Abrir Ferramentas MySQL"
-                >
-                  <Database className="w-3 h-3 text-[#FF6B1A]" />
-                  <span>MySQL</span>
-                </button>
-
-                <button
-                  onClick={onLogout}
-                  className="px-2 py-1 bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] rounded-lg transition-colors flex items-center space-x-1 font-bold"
-                  title="Sair do painel admin"
-                >
-                  <LogOut className="w-3 h-3" />
-                  <span>Sair</span>
-                </button>
+          ) : (
+            <div className="p-3.5 bg-[#0F1115] border border-[#262933] rounded-2xl space-y-2.5 shadow-md">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <Lock className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white truncate font-sans">Acesso Restrito</p>
+                  <p className="text-[10px] font-mono text-[#8E9299] truncate">Faça login como Admin</p>
+                </div>
               </div>
+
+              <button
+                onClick={() => handleSelectTab('login')}
+                className="w-full py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-mono font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-[0_0_10px_rgba(255,107,26,0.3)] flex items-center justify-center space-x-1.5"
+              >
+                <Lock className="w-3.5 h-3.5 text-black" />
+                <span>Entrar como Admin</span>
+              </button>
             </div>
-          </div>
+          )}
         </div>
       </aside>
 

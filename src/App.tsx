@@ -103,39 +103,10 @@ export default function App() {
     }
   };
 
-  // IF PUBLIC STANDALONE MODE: Render only the spectator page without admin sidebar
+  // IF PUBLIC STANDALONE MODE: Render only the spectator page without admin sidebar or top header
   if (isPublicStandaloneMode) {
     return (
       <div className="min-h-screen bg-[#0F1115] text-[#E0E6ED] font-sans flex flex-col">
-        {/* Spectator Top Header */}
-        <header className="bg-[#161920] border-b border-[#262933] sticky top-0 z-50 shadow-xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF6B1A] to-[#FFC400] flex items-center justify-center font-black text-black shadow-[0_0_15px_rgba(255,107,26,0.4)]">
-                <Trophy className="w-5 h-5 text-black" />
-              </div>
-              <div>
-                <span className="text-sm font-black text-white uppercase tracking-wider block font-sans">
-                  Arena Romano
-                </span>
-                <span className="text-[10px] text-[#FF6B1A] font-mono font-bold uppercase tracking-widest block">
-                  ● Portal do Torcedor (Público)
-                </span>
-              </div>
-            </div>
-
-            {/* Organizer Login / Switch Back Button */}
-            <button
-              onClick={() => togglePublicMode(false)}
-              className="px-3.5 py-2 bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] hover:border-[#FF6B1A]/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center space-x-2"
-              title="Acessar painel de gerenciamento do organizador"
-            >
-              <Lock className="w-3.5 h-3.5 text-[#FF6B1A]" />
-              <span className="hidden sm:inline">Entrar como Organizador</span>
-            </button>
-          </div>
-        </header>
-
         {/* Public Portal View */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <PublicPortalView
@@ -194,10 +165,10 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Unauthenticated Protection Fallback */}
-          {!isAdminAuthenticated && activeTab !== 'publico' && activeTab !== 'login' ? (
+          {!isAdminAuthenticated && activeTab !== 'publico' ? (
             <LoginView
               onLoginSuccess={handleAdminLoginSuccess}
-              onGoToPublic={() => setActiveTab('publico')}
+              onGoToPublic={() => togglePublicMode(true)}
               isAuthenticated={isAdminAuthenticated}
               onLogout={handleLogout}
             />
@@ -206,7 +177,7 @@ export default function App() {
               {activeTab === 'login' && (
                 <LoginView
                   onLoginSuccess={handleAdminLoginSuccess}
-                  onGoToPublic={() => setActiveTab('publico')}
+                  onGoToPublic={() => togglePublicMode(true)}
                   isAuthenticated={isAdminAuthenticated}
                   onLogout={handleLogout}
                 />
@@ -277,7 +248,7 @@ export default function App() {
         {/* Footer */}
         <footer className="border-t border-[#262933] bg-[#161920] py-4 text-center text-[11px] text-[#8E9299]">
           <p className="font-mono tracking-wider text-[#8E9299]">
-            ARENA ROMANO CENTRO ESPORTIVO • TORNEIO SOCIETY v2.4 • SQLITE SYNC ENGINE
+            ARENA ROMANO CENTRO ESPORTIVO • TORNEIO SOCIETY
           </p>
         </footer>
       </div>

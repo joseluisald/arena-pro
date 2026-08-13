@@ -36,7 +36,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       if (user) {
         onLoginSuccess();
       } else {
-        setErrorMessage('Credenciais inválidas. Verifique o e-mail e a senha cadastrados no banco de dados SQLite.');
+        setErrorMessage('Credenciais inválidas. Verifique o e-mail e a senha de administrador.');
       }
     } catch (err) {
       console.error('Erro na autenticação:', err);
@@ -44,12 +44,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleFillDemoCredentials = () => {
-    setEmail('jaldrighi@gmail.com');
-    setPassword('teste123A');
-    setErrorMessage('');
   };
 
   if (isAuthenticated) {
@@ -135,7 +129,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="jaldrighi@gmail.com"
+              placeholder="Digite seu e-mail"
               className="w-full bg-[#0F1115] text-white text-xs font-mono rounded-xl px-4 py-3.5 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A] transition-all"
             />
           </div>
@@ -151,7 +145,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••"
+                placeholder="Digite sua senha"
                 className="w-full bg-[#0F1115] text-white text-xs font-mono rounded-xl pl-4 pr-11 py-3.5 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A] transition-all"
               />
               <button
@@ -165,18 +159,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </div>
           </div>
 
-          {/* Fill Demo Credentials Helper */}
-          <div className="bg-[#0F1115] p-3 rounded-xl border border-[#262933] flex items-center justify-between text-[11px] font-mono">
-            <span className="text-[#8E9299]">Admin Padrão</span>
-            <button
-              type="button"
-              onClick={handleFillDemoCredentials}
-              className="text-[#FF6B1A] hover:underline font-bold uppercase tracking-wider text-[10px]"
-            >
-              [ Preencher Dados ]
-            </button>
-          </div>
-
           {/* Submit Button */}
           <button
             type="submit"
@@ -187,21 +169,23 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <span>Entrando...</span>
             ) : (
               <>
-                <span>Acessar Painel de Controle</span>
+                <span>Acessar Painel do Organizador</span>
                 <ArrowRight className="w-4 h-4 text-black" />
               </>
             )}
           </button>
         </form>
 
-        {/* Back to Public Portal Button */}
-        <div className="pt-4 border-t border-[#262933] text-center">
+        {/* Public Portal Spectator Action */}
+        <div className="pt-4 border-t border-[#262933] space-y-2 text-center">
+          <p className="text-[11px] text-[#8E9299]">Não é administrador? Acompanhe como torcedor:</p>
           <button
+            type="button"
             onClick={onGoToPublic}
-            className="text-xs text-[#8E9299] hover:text-white font-mono flex items-center justify-center space-x-1.5 mx-auto transition-colors"
+            className="w-full py-3 px-4 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] hover:text-white border border-[#262933] hover:border-[#FF6B1A]/40 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2"
           >
-            <Globe className="w-3.5 h-3.5 text-[#FF6B1A]" />
-            <span>Voltar ao Portal Público do Torcedor</span>
+            <Globe className="w-4 h-4 text-[#FF6B1A]" />
+            <span>Acompanhe o Torneio Society (?mode=public)</span>
           </button>
         </div>
       </div>
