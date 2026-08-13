@@ -5,10 +5,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { Partida, Jogador } from '../types';
-import { generateGroupStageFixtures, generatePlayoffs } from '../services/fixtureService';
+import { generateGroupStageFixtures, generatePlayoffs, resetGroupStageFixtures } from '../services/fixtureService';
 import { query } from '../services/db';
 import { TeamBadge } from './TeamBadge';
-import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Layers, X, Shield } from 'lucide-react';
+import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Layers, X, Shield, RotateCcw } from 'lucide-react';
 
 interface FixturesBracketsViewProps {
   categoriaId: number;
@@ -26,6 +26,7 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
   const [playoffMatches, setPlayoffMatches] = useState<Partida[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   // Draw Format State
   const [drawFormat, setDrawFormat] = useState<'UNICO' | 'DUAS_CHAVES'>('UNICO');
@@ -81,6 +82,21 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
       await loadFixturesData();
     } catch (e: any) {
       setActionError(e?.message || 'Erro ao gerar rodadas da fase de grupos.');
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetGroupStage = async () => {
+    setActionError(null);
+    try {
+      setLoading(true);
+      await resetGroupStageFixtures(categoriaId);
+      await loadFixturesData();
+      setShowResetModal(false);
+    } catch (e: any) {
+      setActionError(e?.message || 'Erro ao zerar a fase de grupos.');
       console.error(e);
     } finally {
       setLoading(false);
@@ -187,6 +203,18 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Gerar Fase de Grupos</span>
             </button>
+
+            {(matches.length > 0 || playoffMatches.length > 0) && (
+              <button
+                onClick={() => setShowResetModal(true)}
+                disabled={loading}
+                className="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-colors flex items-center space-x-1.5 shrink-0"
+                title="Limpar todos os jogos gerados na fase de grupos e mata-mata"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Zerar Jogos / Tabela</span>
+              </button>
+            )}
 
             <button
               onClick={handleGeneratePlayoffs}
@@ -530,6 +558,57 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Confirmation Modal: Reset Group Stage / Fixtures */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#161920] border border-[#262933] rounded-3xl p-6 w-full max-w-md space-y-5 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-[#262933] pb-3">
+              <div className="flex items-center space-x-2 text-red-400">
+                <RotateCcw className="w-5 h-5" />
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Zerar Fase de Grupos</h3>
+              </div>
+              <button
+                onClick={() => setShowResetModal(false)}
+                className="p-1 text-[#8E9299] hover:text-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-[#E0E6ED] leading-relaxed">
+                Tem certeza que deseja zerar e apagar a tabela de jogos desta categoria?
+              </p>
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-[11px] text-red-300 space-y-1 font-mono">
+                <p className="font-bold uppercase">• Serão excluídas todas as partidas agendadas e finalizadas.</p>
+                <p>• Placares, gols, cartões e estatísticas dos jogos serão removidos.</p>
+                <p>• Você poderá gerar uma nova tabela em Chave Única ou Duas Chaves livremente.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                disabled={loading}
+                className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#8E9299] hover:text-white border border-[#262933] rounded-xl text-xs font-mono font-bold uppercase transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleResetGroupStage}
+                disabled={loading}
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(220,38,38,0.4)] transition-all flex items-center space-x-2"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                <span>{loading ? 'Zerando...' : 'Sim, Zerar Tabela'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

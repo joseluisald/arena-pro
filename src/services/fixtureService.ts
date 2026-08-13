@@ -13,6 +13,22 @@ export interface FixtureSummary {
 }
 
 /**
+ * Reset / Clear all fixtures and events for a category
+ */
+export async function resetGroupStageFixtures(categoria_id: number): Promise<void> {
+  await runQuery(
+    `DELETE FROM suspensoes WHERE partida_origem_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`,
+    [categoria_id]
+  );
+  await runQuery(
+    `DELETE FROM eventos_partida WHERE partida_id IN (SELECT id FROM partidas WHERE categoria_id = ?);`,
+    [categoria_id]
+  );
+  await runQuery(`DELETE FROM partidas WHERE categoria_id = ?;`, [categoria_id]);
+  await runQuery(`UPDATE times SET grupo = 'A' WHERE categoria_id = ?;`, [categoria_id]);
+}
+
+/**
  * Generate Round-Robin Group Stage matches (Berger / Circle Method)
  */
 export async function generateGroupStageFixtures(
