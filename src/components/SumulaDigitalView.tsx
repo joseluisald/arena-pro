@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { EventoPartida, Jogador, Partida, TipoEvento } from '../types';
+import { TeamBadge } from './TeamBadge';
 import {
   getMatchDetails,
   getMatchRosters,
@@ -334,10 +335,10 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                 {/* Mandante */}
                 <div className="flex flex-col items-center space-y-2">
                   <div
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg border border-white/20"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg border border-white/20 overflow-hidden"
                     style={{ backgroundColor: match.time_mandante_cor || '#000' }}
                   >
-                    {match.time_mandante_brasao || '🛡️'}
+                    <TeamBadge badge={match.time_mandante_brasao} name={match.time_mandante_nome} className="w-14 h-14 sm:w-16 sm:h-16" />
                   </div>
                   <h3 className="text-sm sm:text-base font-black text-white max-w-[140px] truncate uppercase">
                     {match.time_mandante_nome}
@@ -360,10 +361,10 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
                 {/* Visitante */}
                 <div className="flex flex-col items-center space-y-2">
                   <div
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg border border-white/20"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg border border-white/20 overflow-hidden"
                     style={{ backgroundColor: match.time_visitante_cor || '#000' }}
                   >
-                    {match.time_visitante_brasao || '🛡️'}
+                    <TeamBadge badge={match.time_visitante_brasao} name={match.time_visitante_nome} className="w-14 h-14 sm:w-16 sm:h-16" />
                   </div>
                   <h3 className="text-sm sm:text-base font-black text-white max-w-[140px] truncate uppercase">
                     {match.time_visitante_nome}

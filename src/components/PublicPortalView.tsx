@@ -15,6 +15,7 @@ import {
   POSICOES_MAP 
 } from '../types';
 import { query } from '../services/db';
+import { TeamBadge } from './TeamBadge';
 import { 
   Trophy, 
   Flame, 
@@ -501,8 +502,9 @@ export const PublicPortalView: React.FC<PublicPortalViewProps> = ({
 
                         <td className="py-3 px-4">
                           <div className="flex items-center space-x-3">
+                            <TeamBadge badge={st.time_brasao_path} name={st.time_nome} className="w-5 h-5 text-sm" />
                             <div
-                              className="w-4 h-4 rounded-full border border-white/20 shrink-0"
+                              className="w-3 h-3 rounded-full border border-white/20 shrink-0"
                               style={{ backgroundColor: st.time_cor_hex }}
                             />
                             <span className="font-extrabold text-white uppercase tracking-wide text-xs sm:text-sm">

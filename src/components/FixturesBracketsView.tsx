@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Partida, Jogador } from '../types';
 import { generateGroupStageFixtures, generatePlayoffs } from '../services/fixtureService';
 import { query } from '../services/db';
+import { TeamBadge } from './TeamBadge';
 import { Calendar, Play, Trophy, Sparkles, RefreshCw, AlertCircle, ChevronRight, Layers, X, Shield } from 'lucide-react';
 
 interface FixturesBracketsViewProps {
@@ -306,8 +307,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                               {/* Mandante */}
                               <div className="flex items-center space-x-1.5 flex-1 justify-end text-right min-w-0">
                                 <span className="text-xs font-bold text-white truncate">{m.time_mandante_nome}</span>
+                                <TeamBadge badge={m.time_mandante_brasao} name={m.time_mandante_nome} className="w-4 h-4 text-xs" />
                                 <div
-                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                                   style={{ backgroundColor: m.time_mandante_cor }}
                                 />
                               </div>
@@ -320,9 +322,10 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                               {/* Visitante */}
                               <div className="flex items-center space-x-1.5 flex-1 text-left min-w-0">
                                 <div
-                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                                   style={{ backgroundColor: m.time_visitante_cor }}
                                 />
+                                <TeamBadge badge={m.time_visitante_brasao} name={m.time_visitante_nome} className="w-4 h-4 text-xs" />
                                 <span className="text-xs font-bold text-white truncate">{m.time_visitante_nome}</span>
                               </div>
                             </div>
@@ -378,8 +381,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                               {/* Mandante */}
                               <div className="flex items-center space-x-1.5 flex-1 justify-end text-right min-w-0">
                                 <span className="text-xs font-bold text-white truncate">{m.time_mandante_nome}</span>
+                                <TeamBadge badge={m.time_mandante_brasao} name={m.time_mandante_nome} className="w-4 h-4 text-xs" />
                                 <div
-                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                                   style={{ backgroundColor: m.time_mandante_cor }}
                                 />
                               </div>
@@ -392,9 +396,10 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                               {/* Visitante */}
                               <div className="flex items-center space-x-1.5 flex-1 text-left min-w-0">
                                 <div
-                                  className="w-3 h-3 rounded-full border border-white/20 flex-shrink-0"
+                                  className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                                   style={{ backgroundColor: m.time_visitante_cor }}
                                 />
+                                <TeamBadge badge={m.time_visitante_brasao} name={m.time_visitante_nome} className="w-4 h-4 text-xs" />
                                 <span className="text-xs font-bold text-white truncate">{m.time_visitante_nome}</span>
                               </div>
                             </div>
@@ -435,8 +440,9 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                         {/* Mandante */}
                         <div className="flex items-center space-x-2 flex-1 justify-end text-right">
                           <span className="text-xs font-bold text-white truncate">{m.time_mandante_nome}</span>
+                          <TeamBadge badge={m.time_mandante_brasao} name={m.time_mandante_nome} className="w-4 h-4 text-xs" />
                           <div
-                            className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0"
+                            className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                             style={{ backgroundColor: m.time_mandante_cor }}
                           />
                         </div>
@@ -449,9 +455,10 @@ export const FixturesBracketsView: React.FC<FixturesBracketsViewProps> = ({
                         {/* Visitante */}
                         <div className="flex items-center space-x-2 flex-1 text-left">
                           <div
-                            className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0"
+                            className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                             style={{ backgroundColor: m.time_visitante_cor }}
                           />
+                          <TeamBadge badge={m.time_visitante_brasao} name={m.time_visitante_nome} className="w-4 h-4 text-xs" />
                           <span className="text-xs font-bold text-white truncate">{m.time_visitante_nome}</span>
                         </div>
                       </div>

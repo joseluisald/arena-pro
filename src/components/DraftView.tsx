@@ -8,6 +8,7 @@ import { Jogador, POSICOES_MAP, Time } from '../types';
 import { executeDraft, resetDraft } from '../services/draftService';
 import { query } from '../services/db';
 import { Shuffle, RotateCcw, Users, ShieldCheck, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { TeamBadge } from './TeamBadge';
 
 interface DraftViewProps {
   categoriaId: number;
@@ -204,10 +205,10 @@ export const DraftView: React.FC<DraftViewProps> = ({ categoriaId, onNavigateToG
                   <div className="flex items-center justify-between pb-3 border-b border-[#262933]">
                     <div className="flex items-center space-x-3">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black border border-white/20 shadow-md"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black border border-white/20 shadow-md overflow-hidden"
                         style={{ backgroundColor: team.cor_hex }}
                       >
-                        {team.brasao_path || '🛡️'}
+                        <TeamBadge badge={team.brasao_path} name={team.nome} className="w-10 h-10" />
                       </div>
                       <div>
                         <h4 className="text-sm font-black text-white uppercase tracking-wider">{team.nome}</h4>

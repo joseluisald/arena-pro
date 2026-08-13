@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArtilhariaItem, Categoria, ClassificacaoItem, ConfigCategoria, Partida, Time } from '../types';
 import { query } from '../services/db';
+import { TeamBadge } from './TeamBadge';
 import { Trophy, Users, DollarSign, Activity, Play, ChevronRight, AlertCircle, ShieldAlert } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -299,12 +300,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
 
                   {/* Match Scoreboard */}
-                  <div className="flex items-center space-x-4 w-full sm:w-auto justify-center">
+                  <div className="flex items-center space-x-3 w-full sm:w-auto justify-center">
                     {/* Mandante */}
                     <div className="flex items-center space-x-2 justify-end text-right w-36 sm:w-40">
                       <span className="text-xs font-bold text-white truncate">{m.time_mandante_nome}</span>
+                      <TeamBadge badge={m.time_mandante_brasao} name={m.time_mandante_nome} className="w-5 h-5 text-xs" />
                       <div
-                        className="w-4 h-4 rounded-full border border-white/20 flex-shrink-0"
+                        className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                         style={{ backgroundColor: m.time_mandante_cor || '#000' }}
                       />
                     </div>
@@ -319,9 +321,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {/* Visitante */}
                     <div className="flex items-center space-x-2 text-left w-36 sm:w-40">
                       <div
-                        className="w-4 h-4 rounded-full border border-white/20 flex-shrink-0"
+                        className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0"
                         style={{ backgroundColor: m.time_visitante_cor || '#000' }}
                       />
+                      <TeamBadge badge={m.time_visitante_brasao} name={m.time_visitante_nome} className="w-5 h-5 text-xs" />
                       <span className="text-xs font-bold text-white truncate">{m.time_visitante_nome}</span>
                     </div>
                   </div>
@@ -366,10 +369,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     key={st.time_id}
                     className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#0F1115] border border-[#262933]"
                   >
-                    <div className="flex items-center space-x-2.5">
+                    <div className="flex items-center space-x-2">
                       <span className="font-mono font-bold text-[#8E9299] w-4">{idx + 1}º</span>
+                      <TeamBadge badge={st.time_brasao_path} name={st.time_nome} className="w-4 h-4 text-xs" />
                       <div
-                        className="w-3 h-3 rounded-full border border-white/20"
+                        className="w-2.5 h-2.5 rounded-full border border-white/20"
                         style={{ backgroundColor: st.time_cor_hex }}
                       />
                       <span className="font-semibold text-white truncate max-w-[110px]">{st.time_nome}</span>

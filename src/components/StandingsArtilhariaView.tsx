@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { ArtilhariaItem, ClassificacaoItem, DestaqueItem, Suspensao } from '../types';
 import { query } from '../services/db';
 import { Trophy, ShieldAlert, Award, AlertTriangle, Users, Flame, Sparkles, X, Shield } from 'lucide-react';
+import { TeamBadge } from './TeamBadge';
 
 interface StandingsArtilhariaViewProps {
   categoriaId: number;
@@ -217,8 +218,9 @@ export const StandingsArtilhariaView: React.FC<StandingsArtilhariaViewProps> = (
                     </td>
                     <td className="py-3 px-4 font-bold text-white font-sans">
                       <div className="flex items-center space-x-2.5">
+                        <TeamBadge badge={st.time_brasao_path} name={st.time_nome} className="w-5 h-5 text-sm" />
                         <div
-                          className="w-3.5 h-3.5 rounded-full border border-white/20"
+                          className="w-2.5 h-2.5 rounded-full border border-white/20"
                           style={{ backgroundColor: st.time_cor_hex }}
                         />
                         <span className="truncate max-w-[160px] uppercase">{st.time_nome}</span>

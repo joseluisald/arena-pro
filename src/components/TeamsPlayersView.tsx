@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Jogador, POSICOES_MAP, Time } from '../types';
 import { query, runQuery } from '../services/db';
 import { Users, Plus, Shield, CheckCircle, Clock, Trash2, Edit, DollarSign, Filter } from 'lucide-react';
+import { TeamBadge } from './TeamBadge';
 
 interface TeamsPlayersViewProps {
   categoriaId: number;
@@ -230,10 +231,10 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-md border border-white/20"
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-md border border-white/20 overflow-hidden"
                     style={{ backgroundColor: t.cor_hex }}
                   >
-                    {t.brasao_path || '🛡️'}
+                    <TeamBadge badge={t.brasao_path} name={t.nome} className="w-12 h-12" />
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-white uppercase tracking-wider">{t.nome}</h3>
@@ -358,24 +359,33 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Cor Principal (Hex)</label>
-                  <input
-                    type="color"
-                    value={newTeamColor}
-                    onChange={(e) => setNewTeamColor(e.target.value)}
-                    className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
-                  />
-                </div>
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Cor Principal (Hex)</label>
+                <input
+                  type="color"
+                  value={newTeamColor}
+                  onChange={(e) => setNewTeamColor(e.target.value)}
+                  className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Brasão (Emoji)</label>
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">
+                  Brasão (Emoji ou URL de Imagem)
+                </label>
+                <div className="flex items-center space-x-2">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center border border-[#262933] shrink-0 overflow-hidden text-lg"
+                    style={{ backgroundColor: newTeamColor }}
+                  >
+                    <TeamBadge badge={newTeamBadge} name={newTeamName} className="w-10 h-10" />
+                  </div>
                   <input
                     type="text"
                     value={newTeamBadge}
                     onChange={(e) => setNewTeamBadge(e.target.value)}
-                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] text-center font-bold"
+                    placeholder="🛡️ ou https://..."
+                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] font-mono text-xs focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                   />
                 </div>
               </div>
@@ -482,24 +492,33 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Cor Principal</label>
-                  <input
-                    type="color"
-                    value={editTeamColor}
-                    onChange={(e) => setEditTeamColor(e.target.value)}
-                    className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
-                  />
-                </div>
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Cor Principal</label>
+                <input
+                  type="color"
+                  value={editTeamColor}
+                  onChange={(e) => setEditTeamColor(e.target.value)}
+                  className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Brasão (Emoji/Ícone)</label>
+              <div>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">
+                  Brasão (Emoji ou URL de Imagem)
+                </label>
+                <div className="flex items-center space-x-2">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center border border-[#262933] shrink-0 overflow-hidden text-lg"
+                    style={{ backgroundColor: editTeamColor }}
+                  >
+                    <TeamBadge badge={editTeamBadge} name={editTeamName} className="w-10 h-10" />
+                  </div>
                   <input
                     type="text"
                     value={editTeamBadge}
                     onChange={(e) => setEditTeamBadge(e.target.value)}
-                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] text-center font-bold"
+                    placeholder="🛡️ ou https://..."
+                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] font-mono text-xs focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                   />
                 </div>
               </div>
