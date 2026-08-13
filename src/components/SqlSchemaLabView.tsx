@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
-import { query, runQuery, exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
-import { Database, CheckCircle, Terminal, Play, ShieldAlert, Code2, Table, Download, Upload, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { query, runQuery, resetDatabaseToSeed, exportDatabaseBackup, getMySQLStatus, MySQLStatus } from '../services/db';
+import { Database, CheckCircle, Terminal, Play, Code2, Download, RotateCcw, AlertTriangle, CheckCircle2, Server, ShieldCheck, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const SqlSchemaLabView: React.FC = () => {
@@ -13,28 +13,39 @@ export const SqlSchemaLabView: React.FC = () => {
   const [queryResult, setQueryResult] = useState<any[] | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
+  const [mysqlStatus, setMysqlStatus] = useState<MySQLStatus | null>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleExport = async () => {
-    const blob = await exportSqliteFile();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `torneio_society_backup_${new Date().toISOString().slice(0, 10)}.sqlite`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const fetchStatus = async () => {
+    setIsCheckingStatus(true);
+    try {
+      const status = await getMySQLStatus();
+      setMysqlStatus(status);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsCheckingStatus(false);
+    }
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      importSqliteFile(file).then(() => {
-        setResetSuccessMessage('Arquivo .sqlite restaurado com sucesso!');
-        setTimeout(() => window.location.reload(), 1000);
-      });
+  useEffect(() => {
+    fetchStatus();
+  }, []);
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportDatabaseBackup();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `torneio_society_mysql_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setErrorMsg('Erro ao exportar backup: ' + e.message);
     }
   };
 
@@ -43,7 +54,7 @@ export const SqlSchemaLabView: React.FC = () => {
       setIsResetting(true);
       await resetDatabaseToSeed();
       setIsResetModalOpen(false);
-      setResetSuccessMessage('Banco de dados resetado com sucesso! Dados restaurados para o estado inicial.');
+      setResetSuccessMessage('Banco de dados MySQL resetado com sucesso! Dados restaurados para o estado inicial.');
 
       confetti({
         particleCount: 100,
@@ -51,8 +62,8 @@ export const SqlSchemaLabView: React.FC = () => {
         origin: { y: 0.5 },
       });
       setTimeout(() => window.location.reload(), 1500);
-    } catch (err) {
-      console.error('Erro ao resetar banco de dados:', err);
+    } catch (err: any) {
+      setErrorMsg('Erro ao resetar banco MySQL: ' + err.message);
     } finally {
       setIsResetting(false);
     }
@@ -72,15 +83,15 @@ export const SqlSchemaLabView: React.FC = () => {
   const handleExecuteSql = async () => {
     try {
       setErrorMsg(null);
-      if (customSql.trim().toUpperCase().startsWith('SELECT')) {
+      if (customSql.trim().toUpperCase().startsWith('SELECT') || customSql.trim().toUpperCase().startsWith('SHOW') || customSql.trim().toUpperCase().startsWith('DESCRIBE')) {
         const res = await query(customSql);
         setQueryResult(res);
       } else {
-        await runQuery(customSql);
-        setQueryResult([{ status: 'Comando SQL executado com sucesso!' }]);
+        const res = await runQuery(customSql);
+        setQueryResult([{ status: 'Comando SQL executado com sucesso!', affectedRows: res.changes, lastInsertId: res.lastInsertRowid }]);
       }
     } catch (e: any) {
-      setErrorMsg(e.message || 'Erro de execução SQL');
+      setErrorMsg(e.message || 'Erro de execução SQL no MySQL');
       setQueryResult(null);
     }
   };
@@ -100,42 +111,81 @@ export const SqlSchemaLabView: React.FC = () => {
 
       {/* Header */}
       <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 shadow-xl">
-        <div className="flex items-center space-x-2 mb-1">
-          <Database className="w-5 h-5 text-[#FF6B1A]" />
-          <h2 className="text-xl font-black text-white uppercase tracking-tight">Ferramentas & Esquema SQLite</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-2 mb-1">
+              <Database className="w-5 h-5 text-[#FF6B1A]" />
+              <h2 className="text-xl font-black text-white uppercase tracking-tight">Ferramentas & Esquema MySQL</h2>
+            </div>
+            <p className="text-xs text-[#8E9299]">
+              Conexão com MySQL via variáveis de ambiente (.env), validação do modelo relacional e console SQL interativo.
+            </p>
+          </div>
+          <button
+            onClick={fetchStatus}
+            disabled={isCheckingStatus}
+            className="px-3 py-2 bg-[#0F1115] hover:bg-[#222632] text-xs font-mono text-[#8E9299] hover:text-white border border-[#262933] rounded-xl flex items-center space-x-1.5 transition-all"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isCheckingStatus ? 'animate-spin' : ''}`} />
+            <span>Verificar Conexão</span>
+          </button>
         </div>
-        <p className="text-xs text-[#8E9299]">
-          Exportação/restauração do arquivo local .sqlite, reset do banco, validação do modelo relacional e console SQL.
-        </p>
       </div>
 
-      {/* Ferramentas SQLite Card */}
+      {/* MySQL Connection Status Banner */}
       <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between border-b border-[#262933] pb-3">
           <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center space-x-2">
-            <Database className="w-4 h-4 text-[#FF6B1A]" />
-            <span>Ferramentas de Banco de Dados SQLite</span>
+            <Server className="w-4 h-4 text-[#FF6B1A]" />
+            <span>Status da Conexão MySQL (.env)</span>
           </h3>
-          <span className="text-[10px] font-mono text-[#8E9299] bg-[#0F1115] px-2.5 py-1 rounded-lg border border-[#262933]">
-            Sincronização Local (WASM / SQLite)
+          <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border ${
+            mysqlStatus?.connected 
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+              : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+          }`}>
+            {mysqlStatus?.connected ? '🟢 MySQL Conectado' : '🟡 Aguardando Credenciais no .env'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+          <div className="p-3 bg-[#0F1115] rounded-xl border border-[#262933]">
+            <span className="text-[#8E9299] block text-[10px] uppercase">Host</span>
+            <span className="text-white font-bold">{mysqlStatus?.host || 'localhost'}</span>
+          </div>
+          <div className="p-3 bg-[#0F1115] rounded-xl border border-[#262933]">
+            <span className="text-[#8E9299] block text-[10px] uppercase">Porta</span>
+            <span className="text-white font-bold">{mysqlStatus?.port || 3306}</span>
+          </div>
+          <div className="p-3 bg-[#0F1115] rounded-xl border border-[#262933]">
+            <span className="text-[#8E9299] block text-[10px] uppercase">Usuário</span>
+            <span className="text-white font-bold">{mysqlStatus?.user || 'root'}</span>
+          </div>
+          <div className="p-3 bg-[#0F1115] rounded-xl border border-[#262933]">
+            <span className="text-[#8E9299] block text-[10px] uppercase">Database</span>
+            <span className="text-white font-bold">{mysqlStatus?.database || 'torneio_society'}</span>
+          </div>
+        </div>
+
+        {mysqlStatus?.error && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-mono text-amber-400 flex items-start space-x-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold uppercase text-[11px]">Aviso de Conexão MySQL</p>
+              <p className="text-[#8E9299] text-[11px] mt-0.5">
+                {mysqlStatus.error}. Configure as variáveis no seu <code>.env</code> (MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE).
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
           <button
             onClick={handleExport}
             className="flex items-center justify-center space-x-2 p-4 rounded-xl bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 transition-all font-mono text-xs font-bold"
           >
             <Download className="w-4 h-4 text-[#FF6B1A]" />
-            <span>Exportar Backup (.sqlite)</span>
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center space-x-2 p-4 rounded-xl bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 transition-all font-mono text-xs font-bold"
-          >
-            <Upload className="w-4 h-4 text-[#FF6B1A]" />
-            <span>Restaurar Arquivo (.sqlite)</span>
+            <span>Exportar Backup (.json)</span>
           </button>
 
           <button
@@ -143,16 +193,8 @@ export const SqlSchemaLabView: React.FC = () => {
             className="flex items-center justify-center space-x-2 p-4 rounded-xl bg-[#FF1744]/10 hover:bg-[#FF1744]/20 text-[#FF1744] border border-[#FF1744]/30 transition-all font-mono text-xs font-bold uppercase"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Resetar Banco de Dados</span>
+            <span>Resetar Tabelas do Torneio</span>
           </button>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImport}
-            accept=".sqlite,.db"
-            className="hidden"
-          />
         </div>
       </div>
 
@@ -162,20 +204,20 @@ export const SqlSchemaLabView: React.FC = () => {
         <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-3 shadow-xl">
           <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
             <CheckCircle className="w-4 h-4 text-[#FF6B1A]" />
-            <span>Status da Validação do Esquema</span>
+            <span>Estrutura Relacional MySQL (InnoDB)</span>
           </h3>
 
           <div className="space-y-2 text-xs font-mono text-[#E0E6ED]">
             <div className="p-2.5 bg-[#0F1115] rounded-xl border border-[#262933] flex items-center justify-between">
-              <span>Support a Chaves Estrangeiras (`PRAGMA foreign_keys = ON`)</span>
+              <span>Chaves Estrangeiras & Cascata (ON DELETE CASCADE)</span>
               <span className="text-[#FF6B1A] font-bold">✓ Ativo</span>
             </div>
             <div className="p-2.5 bg-[#0F1115] rounded-xl border border-[#262933] flex items-center justify-between">
-              <span>8 Tabelas do Modelo Relacional</span>
+              <span>8 Tabelas Relacionais com Auto Increment</span>
               <span className="text-[#FF6B1A] font-bold">✓ Válido</span>
             </div>
             <div className="p-2.5 bg-[#0F1115] rounded-xl border border-[#262933] flex items-center justify-between">
-              <span>Índices de Performance por Categoria e Pote</span>
+              <span>Charset & Collation (utf8mb4_unicode_ci)</span>
               <span className="text-[#FF6B1A] font-bold">✓ Otimizado</span>
             </div>
           </div>
@@ -185,7 +227,7 @@ export const SqlSchemaLabView: React.FC = () => {
         <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 space-y-3 shadow-xl">
           <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
             <Code2 className="w-4 h-4 text-[#FFC400]" />
-            <span>Triggers & Views para Modo Offline</span>
+            <span>Triggers & Regras Automáticas</span>
           </h3>
 
           <div className="space-y-2 text-xs font-mono text-[#E0E6ED]">
@@ -197,9 +239,9 @@ export const SqlSchemaLabView: React.FC = () => {
             </div>
 
             <div className="p-2.5 bg-[#0F1115] rounded-xl border border-[#262933]">
-              <p className="font-bold text-orange-400">Processador de Suspensões por Cartão</p>
+              <p className="font-bold text-orange-400">Suspensões por Cartão no MySQL</p>
               <p className="text-[11px] text-[#8E9299] font-sans mt-0.5">
-                Mapeia acúmulo de cartões amarelos e vermelhos no encerramento da partida e insere punições em `suspensoes`.
+                Mapeia acúmulo de cartões amarelos e expulsões com integridade referencial garantida.
               </p>
             </div>
           </div>
@@ -211,7 +253,7 @@ export const SqlSchemaLabView: React.FC = () => {
         <div className="flex items-center justify-between pb-2 border-b border-[#262933]">
           <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center space-x-2">
             <Terminal className="w-4 h-4 text-[#FF6B1A]" />
-            <span>Console Interativo SQLite</span>
+            <span>Console Interativo MySQL</span>
           </h3>
         </div>
 
@@ -303,14 +345,14 @@ export const SqlSchemaLabView: React.FC = () => {
                   <AlertTriangle className="w-6 h-6 text-[#FF1744]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white uppercase tracking-tight">Resetar Banco de Dados</h3>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">Resetar Banco MySQL</h3>
                   <p className="text-[11px] font-mono text-[#8E9299]">Ação Crítica de Reinicialização</p>
                 </div>
               </div>
             </div>
 
             <p className="text-xs text-[#8E9299] leading-relaxed">
-              Esta ação irá apagar todas as partidas, súmulas, cartões e inscrições de times/jogadores, restaurando o banco SQLite para os dados padrão iniciais. Seu usuário de login será preservado.
+              Esta ação executará TRUNCATE em todas as partidas, súmulas, cartões e inscrições de times/jogadores no MySQL, restaurando o banco para os dados padrão iniciais. Seu usuário de login será preservado.
             </p>
 
             <div className="flex items-center justify-end space-x-3 pt-2">

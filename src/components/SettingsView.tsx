@@ -29,7 +29,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ categoriaId }) => {
       setConfig(res[0]);
     } else {
       await runQuery(
-        `INSERT OR IGNORE INTO configuracoes_categoria 
+        `INSERT IGNORE INTO configuracoes_categoria 
          (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas)
          VALUES (?, 100, 50, 2, 3, 1, 1, 7, 5);`,
         [categoriaId]

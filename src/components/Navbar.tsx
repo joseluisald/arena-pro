@@ -115,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'classificacao', label: 'Tabela & Artilharia', icon: Trophy, badge: null },
     { id: 'times', label: 'Times & Jogadores', icon: Users, badge: null },
     { id: 'regras', label: 'Regras da Categoria', icon: Settings, badge: null },
-    { id: 'sql-lab', label: 'Ferramentas & Schema SQLite', icon: Database, badge: 'Dev' },
+    { id: 'sql-lab', label: 'Ferramentas & Schema MySQL', icon: Database, badge: 'Dev' },
   ];
 
   const handleSelectTab = (id: string) => {
@@ -342,10 +342,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={() => handleSelectTab('sql-lab')}
                   className="px-2 py-1 bg-[#161920] hover:bg-[#222632] text-[#8E9299] hover:text-white rounded-lg transition-colors flex items-center space-x-1"
-                  title="Abrir Ferramentas SQLite"
+                  title="Abrir Ferramentas MySQL"
                 >
                   <Database className="w-3 h-3 text-[#FF6B1A]" />
-                  <span>SQLite</span>
+                  <span>MySQL</span>
                 </button>
 
                 <button
