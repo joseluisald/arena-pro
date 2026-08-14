@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import mysql, { Pool } from 'mysql2/promise';
 import { DatabaseSync } from 'node:sqlite';
@@ -23,151 +24,186 @@ let isMySQLConnected = false;
 let mySQLError: string | null = null;
 let sqliteDb: DatabaseSync | null = null;
 
+function setupSqliteTables(db: DatabaseSync) {
+  db.exec('PRAGMA foreign_keys = ON;');
+
+  const schemaSQL = `
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        login TEXT UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        senha TEXT NOT NULL,
+        role TEXT DEFAULT 'ADMIN',
+        criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS categorias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL UNIQUE
+    );
+
+    CREATE TABLE IF NOT EXISTS configuracoes_categoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        categoria_id INTEGER NOT NULL UNIQUE,
+        valor_inscricao REAL DEFAULT 0.00,
+        tempo_jogo_minutos INTEGER NOT NULL DEFAULT 20,
+        amarelos_para_expulsao INTEGER DEFAULT 2,
+        amarelos_acumulados_suspensao INTEGER DEFAULT 3,
+        jogos_suspensao_amarelo INTEGER DEFAULT 1,
+        jogos_suspensao_vermelho INTEGER DEFAULT 1,
+        num_titulares INTEGER NOT NULL DEFAULT 6,
+        num_reservas INTEGER NOT NULL DEFAULT 4,
+        FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS times (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        brasao_path TEXT,
+        cor_hex TEXT DEFAULT '#000000',
+        categoria_id INTEGER NOT NULL,
+        grupo TEXT DEFAULT 'A',
+        FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS jogadores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        camisa_posicao INTEGER NOT NULL,
+        pago INTEGER DEFAULT 0,
+        time_id INTEGER NULL,
+        categoria_id INTEGER NOT NULL,
+        FOREIGN KEY (time_id) REFERENCES times(id) ON DELETE SET NULL,
+        FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS fases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS partidas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        categoria_id INTEGER NOT NULL,
+        fase_id INTEGER NOT NULL,
+        time_mandante_id INTEGER NOT NULL,
+        time_visitante_id INTEGER NOT NULL,
+        gols_mandante INTEGER DEFAULT 0,
+        gols_visitante INTEGER DEFAULT 0,
+        data_hora TEXT,
+        status TEXT DEFAULT 'AGENDADO',
+        tempo_decorrido_segundos INTEGER DEFAULT 0,
+        rodada INTEGER DEFAULT 1,
+        grupo TEXT DEFAULT NULL,
+        FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE,
+        FOREIGN KEY (fase_id) REFERENCES fases(id) ON DELETE CASCADE,
+        FOREIGN KEY (time_mandante_id) REFERENCES times(id) ON DELETE CASCADE,
+        FOREIGN KEY (time_visitante_id) REFERENCES times(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS eventos_partida (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        partida_id INTEGER NOT NULL,
+        time_id INTEGER NOT NULL,
+        jogador_id INTEGER NOT NULL,
+        tipo_evento TEXT NOT NULL,
+        minuto_jogo INTEGER NOT NULL,
+        FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
+        FOREIGN KEY (time_id) REFERENCES times(id) ON DELETE CASCADE,
+        FOREIGN KEY (jogador_id) REFERENCES jogadores(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS suspensoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jogador_id INTEGER NOT NULL,
+        partida_origem_id INTEGER NOT NULL,
+        jogos_cumprir INTEGER DEFAULT 1,
+        jogos_cumpridos INTEGER DEFAULT 0,
+        motivo TEXT,
+        FOREIGN KEY (jogador_id) REFERENCES jogadores(id) ON DELETE CASCADE,
+        FOREIGN KEY (partida_origem_id) REFERENCES partidas(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jogadores_cat_camisa ON jogadores(categoria_id, camisa_posicao);
+    CREATE INDEX IF NOT EXISTS idx_partidas_cat_status ON partidas(categoria_id, status);
+    CREATE INDEX IF NOT EXISTS idx_eventos_partida ON eventos_partida(partida_id);
+
+    CREATE TRIGGER IF NOT EXISTS trg_inserir_gol_partida
+    AFTER INSERT ON eventos_partida
+    WHEN NEW.tipo_evento = 'GOL'
+    BEGIN
+      UPDATE partidas 
+      SET gols_mandante = gols_mandante + CASE WHEN NEW.time_id = time_mandante_id THEN 1 ELSE 0 END,
+          gols_visitante = gols_visitante + CASE WHEN NEW.time_id = time_visitante_id THEN 1 ELSE 0 END
+      WHERE id = NEW.partida_id;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_remover_gol_partida
+    AFTER DELETE ON eventos_partida
+    WHEN OLD.tipo_evento = 'GOL'
+    BEGIN
+      UPDATE partidas 
+      SET gols_mandante = gols_mandante - CASE WHEN OLD.time_id = time_mandante_id THEN 1 ELSE 0 END,
+          gols_visitante = gols_visitante - CASE WHEN OLD.time_id = time_visitante_id THEN 1 ELSE 0 END
+      WHERE id = OLD.partida_id;
+    END;
+  `;
+
+  db.exec(schemaSQL);
+
+  // Migration: ensure login column exists in SQLite table
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(usuarios)").all() as { name: string }[];
+    const hasLogin = tableInfo.some((c) => c.name === 'login');
+    if (!hasLogin) {
+      db.exec('ALTER TABLE usuarios ADD COLUMN login TEXT;');
+      db.exec("UPDATE usuarios SET login = 'admin' WHERE login IS NULL OR login = '';");
+    }
+  } catch (e) {
+    console.warn('[SQLite Migration Check]:', e);
+  }
+
+  // Seed default fases
+  const insertFase = db.prepare('INSERT OR IGNORE INTO fases (id, nome) VALUES (?, ?)');
+  const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
+  fases.forEach((nome, idx) => {
+    insertFase.run(idx + 1, nome);
+  });
+
+  // Seed default admin user
+  const userCount = db.prepare('SELECT COUNT(*) as count FROM usuarios').get() as { count: number };
+  if (userCount.count === 0) {
+    db.prepare('INSERT INTO usuarios (nome, login, email, senha, role) VALUES (?, ?, ?, ?, ?)').run(
+      'Organizador Arena Romano',
+      'admin',
+      'jaldrighi@gmail.com',
+      'teste123A',
+      'ADMIN'
+    );
+  } else {
+    try {
+      db.prepare("UPDATE usuarios SET login = 'admin' WHERE (login IS NULL OR login = '') AND email = 'jaldrighi@gmail.com'").run();
+    } catch (e) {}
+  }
+}
+
 function initSqliteDb(): DatabaseSync {
   if (!sqliteDb) {
-    sqliteDb = new DatabaseSync(SQLITE_DB_PATH);
-    sqliteDb.exec('PRAGMA foreign_keys = ON;');
-
-    const schemaSQL = `
-      CREATE TABLE IF NOT EXISTS usuarios (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nome TEXT NOT NULL,
-          email TEXT NOT NULL UNIQUE,
-          senha TEXT NOT NULL,
-          role TEXT DEFAULT 'ADMIN',
-          criado_em TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS categorias (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nome TEXT NOT NULL UNIQUE
-      );
-
-      CREATE TABLE IF NOT EXISTS configuracoes_categoria (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          categoria_id INTEGER NOT NULL UNIQUE,
-          valor_inscricao REAL DEFAULT 0.00,
-          tempo_jogo_minutos INTEGER NOT NULL DEFAULT 20,
-          amarelos_para_expulsao INTEGER DEFAULT 2,
-          amarelos_acumulados_suspensao INTEGER DEFAULT 3,
-          jogos_suspensao_amarelo INTEGER DEFAULT 1,
-          jogos_suspensao_vermelho INTEGER DEFAULT 1,
-          num_titulares INTEGER NOT NULL DEFAULT 6,
-          num_reservas INTEGER NOT NULL DEFAULT 4,
-          FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS times (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nome TEXT NOT NULL,
-          brasao_path TEXT,
-          cor_hex TEXT DEFAULT '#000000',
-          categoria_id INTEGER NOT NULL,
-          grupo TEXT DEFAULT 'A',
-          FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS jogadores (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nome TEXT NOT NULL,
-          camisa_posicao INTEGER NOT NULL,
-          pago INTEGER DEFAULT 0,
-          time_id INTEGER NULL,
-          categoria_id INTEGER NOT NULL,
-          FOREIGN KEY (time_id) REFERENCES times(id) ON DELETE SET NULL,
-          FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS fases (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nome TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS partidas (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          categoria_id INTEGER NOT NULL,
-          fase_id INTEGER NOT NULL,
-          time_mandante_id INTEGER NOT NULL,
-          time_visitante_id INTEGER NOT NULL,
-          gols_mandante INTEGER DEFAULT 0,
-          gols_visitante INTEGER DEFAULT 0,
-          data_hora TEXT,
-          status TEXT DEFAULT 'AGENDADO',
-          tempo_decorrido_segundos INTEGER DEFAULT 0,
-          rodada INTEGER DEFAULT 1,
-          grupo TEXT DEFAULT NULL,
-          FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE,
-          FOREIGN KEY (fase_id) REFERENCES fases(id) ON DELETE CASCADE,
-          FOREIGN KEY (time_mandante_id) REFERENCES times(id) ON DELETE CASCADE,
-          FOREIGN KEY (time_visitante_id) REFERENCES times(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS eventos_partida (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          partida_id INTEGER NOT NULL,
-          time_id INTEGER NOT NULL,
-          jogador_id INTEGER NOT NULL,
-          tipo_evento TEXT NOT NULL,
-          minuto_jogo INTEGER NOT NULL,
-          FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
-          FOREIGN KEY (time_id) REFERENCES times(id) ON DELETE CASCADE,
-          FOREIGN KEY (jogador_id) REFERENCES jogadores(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS suspensoes (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          jogador_id INTEGER NOT NULL,
-          partida_origem_id INTEGER NOT NULL,
-          jogos_cumprir INTEGER DEFAULT 1,
-          jogos_cumpridos INTEGER DEFAULT 0,
-          motivo TEXT,
-          FOREIGN KEY (jogador_id) REFERENCES jogadores(id) ON DELETE CASCADE,
-          FOREIGN KEY (partida_origem_id) REFERENCES partidas(id) ON DELETE CASCADE
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_jogadores_cat_camisa ON jogadores(categoria_id, camisa_posicao);
-      CREATE INDEX IF NOT EXISTS idx_partidas_cat_status ON partidas(categoria_id, status);
-      CREATE INDEX IF NOT EXISTS idx_eventos_partida ON eventos_partida(partida_id);
-
-      CREATE TRIGGER IF NOT EXISTS trg_inserir_gol_partida
-      AFTER INSERT ON eventos_partida
-      WHEN NEW.tipo_evento = 'GOL'
-      BEGIN
-        UPDATE partidas 
-        SET gols_mandante = gols_mandante + CASE WHEN NEW.time_id = time_mandante_id THEN 1 ELSE 0 END,
-            gols_visitante = gols_visitante + CASE WHEN NEW.time_id = time_visitante_id THEN 1 ELSE 0 END
-        WHERE id = NEW.partida_id;
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS trg_remover_gol_partida
-      AFTER DELETE ON eventos_partida
-      WHEN OLD.tipo_evento = 'GOL'
-      BEGIN
-        UPDATE partidas 
-        SET gols_mandante = gols_mandante - CASE WHEN OLD.time_id = time_mandante_id THEN 1 ELSE 0 END,
-            gols_visitante = gols_visitante - CASE WHEN OLD.time_id = time_visitante_id THEN 1 ELSE 0 END
-        WHERE id = OLD.partida_id;
-      END;
-    `;
-
-    sqliteDb.exec(schemaSQL);
-
-    // Seed default fases
-    const insertFase = sqliteDb.prepare('INSERT OR IGNORE INTO fases (id, nome) VALUES (?, ?)');
-    const fases = ['Fase de Grupos', 'Quartas de Final', 'Semifinal', 'Final'];
-    fases.forEach((nome, idx) => {
-      insertFase.run(idx + 1, nome);
-    });
-
-    // Seed default admin user
-    const userCount = sqliteDb.prepare('SELECT COUNT(*) as count FROM usuarios').get() as { count: number };
-    if (userCount.count === 0) {
-      sqliteDb.prepare('INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?)').run(
-        'Organizador Arena Romano',
-        'jaldrighi@gmail.com',
-        'teste123A',
-        'ADMIN'
-      );
+    try {
+      sqliteDb = new DatabaseSync(SQLITE_DB_PATH);
+      setupSqliteTables(sqliteDb);
+    } catch (err: any) {
+      console.warn('[SQLite Init Error, resetting corrupt database file]:', err.message);
+      try {
+        if (fs.existsSync(SQLITE_DB_PATH)) {
+          fs.unlinkSync(SQLITE_DB_PATH);
+        }
+      } catch (unlinkErr) {
+        console.error('[SQLite Unlink Error]:', unlinkErr);
+      }
+      sqliteDb = new DatabaseSync(SQLITE_DB_PATH);
+      setupSqliteTables(sqliteDb);
     }
   }
   return sqliteDb;
@@ -216,6 +252,18 @@ async function tryConnectMySQL(): Promise<boolean> {
     isMySQLConnected = true;
     mySQLError = null;
     console.log(`[MySQL] Conectado ao MySQL com sucesso.`);
+
+    // Ensure MySQL schema has login column
+    try {
+      const [cols]: any = await p.query("SHOW COLUMNS FROM usuarios LIKE 'login'");
+      if (!cols || cols.length === 0) {
+        await p.query("ALTER TABLE usuarios ADD COLUMN login VARCHAR(100) UNIQUE AFTER nome;");
+        await p.query("UPDATE usuarios SET login = 'admin' WHERE login IS NULL OR login = '';");
+      }
+    } catch (e: any) {
+      // Table may not exist yet or warning
+    }
+
     return true;
   } catch (err: any) {
     isMySQLConnected = false;
@@ -396,8 +444,9 @@ async function startServer() {
 
       const userCount = sDb.prepare('SELECT COUNT(*) as count FROM usuarios').get() as { count: number };
       if (userCount.count === 0) {
-        sDb.prepare('INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?)').run(
+        sDb.prepare('INSERT INTO usuarios (nome, login, email, senha, role) VALUES (?, ?, ?, ?, ?)').run(
           'Organizador Arena Romano',
+          'admin',
           'jaldrighi@gmail.com',
           'teste123A',
           'ADMIN'

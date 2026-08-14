@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, KeyRound, Mail, AlertCircle, ArrowRight, Eye, EyeOff, Trophy, Globe, CheckCircle2 } from 'lucide-react';
+import { Lock, ShieldCheck, KeyRound, User, AlertCircle, ArrowRight, Eye, EyeOff, Trophy, Globe, CheckCircle2 } from 'lucide-react';
 import { authenticateUser } from '../services/db';
 
 interface LoginViewProps {
@@ -20,7 +20,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   isAuthenticated,
   onLogout,
 }) => {
-  const [email, setEmail] = useState('');
+  const [loginOrEmail, setLoginOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -32,11 +32,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setIsSubmitting(true);
 
     try {
-      const user = await authenticateUser(email, password);
+      const user = await authenticateUser(loginOrEmail, password);
       if (user) {
         onLoginSuccess();
       } else {
-        setErrorMessage('Credenciais inválidas. Verifique o e-mail e a senha de administrador.');
+        setErrorMessage('Credenciais inválidas. Verifique seu login ou e-mail e a senha.');
       }
     } catch (err) {
       console.error('Erro na autenticação:', err);
@@ -121,15 +121,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-[11px] font-mono uppercase font-bold text-[#8E9299] tracking-wider flex items-center space-x-1">
-              <Mail className="w-3.5 h-3.5 text-[#FF6B1A]" />
-              <span>E-mail do Administrador</span>
+              <User className="w-3.5 h-3.5 text-[#FF6B1A]" />
+              <span>Login ou E-mail</span>
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Digite seu e-mail"
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={loginOrEmail}
+              onChange={(e) => setLoginOrEmail(e.target.value)}
+              placeholder="Digite seu login ou e-mail"
               className="w-full bg-[#0F1115] text-white text-xs font-mono rounded-xl px-4 py-3.5 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A] transition-all"
             />
           </div>

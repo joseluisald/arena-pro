@@ -138,27 +138,28 @@ export const importSqliteFile = async (_file: File): Promise<void> => {
 };
 
 /**
- * Authenticate user against MySQL usuarios table
+ * Authenticate user against usuarios table (by login username or email)
  */
-export async function authenticateUser(email: string, password: string): Promise<Usuario | null> {
-  const cleanEmail = email.trim().toLowerCase();
+export async function authenticateUser(identifier: string, password: string): Promise<Usuario | null> {
+  const cleanId = identifier.trim().toLowerCase();
   const cleanPassword = password.trim();
   const users = await query<Usuario>(
-    'SELECT id, nome, email, role, criado_em FROM usuarios WHERE LOWER(email) = ? AND senha = ?;',
-    [cleanEmail, cleanPassword]
+    'SELECT id, nome, login, email, role, criado_em FROM usuarios WHERE (LOWER(email) = ? OR LOWER(COALESCE(login, \'\')) = ?) AND senha = ?;',
+    [cleanId, cleanId, cleanPassword]
   );
   return users.length > 0 ? users[0] : null;
 }
 
 export async function getUsuarios(): Promise<Usuario[]> {
-  return await query<Usuario>('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY id ASC;');
+  return await query<Usuario>('SELECT id, nome, login, email, role, criado_em FROM usuarios ORDER BY id ASC;');
 }
 
-export async function createUsuario(nome: string, email: string, senha: string, role: string = 'ADMIN'): Promise<number> {
+export async function createUsuario(nome: string, login: string, email: string, senha: string, role: string = 'ADMIN'): Promise<number> {
+  const cleanLogin = login.trim().toLowerCase();
   const cleanEmail = email.trim().toLowerCase();
   const res = await runQuery(
-    'INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?);',
-    [nome.trim(), cleanEmail, senha.trim(), role]
+    'INSERT INTO usuarios (nome, login, email, senha, role) VALUES (?, ?, ?, ?, ?);',
+    [nome.trim(), cleanLogin, cleanEmail, senha.trim(), role]
   );
   return res.lastInsertRowid;
 }
