@@ -5,14 +5,105 @@
 
 import { query, runQuery } from './db';
 import { EventoPartida, Jogador, Partida, Suspensao, TipoEvento } from '../types';
+import { syncCategorySuspensions } from './standingsService';
 
 /**
- * Fetch detailed match data with joined teams and category info
+ * Calculate and persist the exact goals for all matches based on registered GOL events
+ */
+export async function syncAllMatchesScores(): Promise<void> {
+  try {
+    await runQuery(`
+      UPDATE partidas
+      SET 
+        gols_mandante = (
+          SELECT COUNT(*) 
+          FROM eventos_partida ep 
+          WHERE ep.partida_id = partidas.id 
+            AND ep.time_id = partidas.time_mandante_id 
+            AND ep.tipo_evento = 'GOL'
+        ),
+        gols_visitante = (
+          SELECT COUNT(*) 
+          FROM eventos_partida ep 
+          WHERE ep.partida_id = partidas.id 
+            AND ep.time_id = partidas.time_visitante_id 
+            AND ep.tipo_evento = 'GOL'
+        )
+      WHERE (SELECT COUNT(*) FROM eventos_partida ep WHERE ep.partida_id = partidas.id AND ep.tipo_evento = 'GOL') > 0;
+    `);
+  } catch (err) {
+    console.error('[syncAllMatchesScores Error]:', err);
+  }
+}
+
+/**
+ * Calculate and persist the exact goals for mandante and visitante based on registered GOL events
+ */
+export async function updateMatchScoreFromEvents(partida_id: number): Promise<{ gols_mandante: number; gols_visitante: number }> {
+  try {
+    // 1. Calculate live goals directly from eventos_partida table
+    const counts = await query<{ gols_mandante: number; gols_visitante: number }>(
+      `SELECT 
+         COALESCE((SELECT COUNT(*) FROM eventos_partida WHERE partida_id = p.id AND time_id = p.time_mandante_id AND tipo_evento = 'GOL'), 0) AS gols_mandante,
+         COALESCE((SELECT COUNT(*) FROM eventos_partida WHERE partida_id = p.id AND time_id = p.time_visitante_id AND tipo_evento = 'GOL'), 0) AS gols_visitante
+       FROM partidas p
+       WHERE p.id = ?;`,
+      [partida_id]
+    );
+
+    const totalEvents = await query<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM eventos_partida WHERE partida_id = ? AND tipo_evento = 'GOL';`,
+      [partida_id]
+    );
+
+    if ((totalEvents[0]?.total || 0) > 0) {
+      const gols_mandante = counts[0]?.gols_mandante ?? 0;
+      const gols_visitante = counts[0]?.gols_visitante ?? 0;
+
+      // 2. Persist updated score into partidas table
+      await runQuery(
+        `UPDATE partidas SET gols_mandante = ?, gols_visitante = ? WHERE id = ?;`,
+        [gols_mandante, gols_visitante, partida_id]
+      );
+
+      return { gols_mandante, gols_visitante };
+    }
+
+    const currentMatch = await query<{ gols_mandante: number; gols_visitante: number }>(
+      `SELECT gols_mandante, gols_visitante FROM partidas WHERE id = ?;`,
+      [partida_id]
+    );
+
+    return {
+      gols_mandante: currentMatch[0]?.gols_mandante ?? 0,
+      gols_visitante: currentMatch[0]?.gols_visitante ?? 0
+    };
+  } catch (err) {
+    console.error('[updateMatchScoreFromEvents Error]:', err);
+    return { gols_mandante: 0, gols_visitante: 0 };
+  }
+}
+
+/**
+ * Fetch detailed match data with joined teams, category info and computed live score
  */
 export async function getMatchDetails(partida_id: number): Promise<Partida | null> {
+  // Sync score first to ensure absolute consistency
+  await updateMatchScoreFromEvents(partida_id);
+
   const matches = await query<Partida>(
     `SELECT 
        p.*,
+       CASE 
+         WHEN (SELECT COUNT(*) FROM eventos_partida ep WHERE ep.partida_id = p.id AND ep.time_id = p.time_mandante_id AND ep.tipo_evento = 'GOL') > 0
+         THEN (SELECT COUNT(*) FROM eventos_partida ep WHERE ep.partida_id = p.id AND ep.time_id = p.time_mandante_id AND ep.tipo_evento = 'GOL')
+         ELSE COALESCE(p.gols_mandante, 0)
+       END AS gols_mandante,
+       CASE 
+         WHEN (SELECT COUNT(*) FROM eventos_partida ep WHERE ep.partida_id = p.id AND ep.time_id = p.time_visitante_id AND ep.tipo_evento = 'GOL') > 0
+         THEN (SELECT COUNT(*) FROM eventos_partida ep WHERE ep.partida_id = p.id AND ep.time_id = p.time_visitante_id AND ep.tipo_evento = 'GOL')
+         ELSE COALESCE(p.gols_visitante, 0)
+       END AS gols_visitante,
        f.nome AS fase_nome,
        c.nome AS categoria_nome,
        tm.nome AS time_mandante_nome,
@@ -99,7 +190,7 @@ export async function getMatchEvents(partida_id: number): Promise<EventoPartida[
 
 /**
  * Add a match event (Gol, Yellow Card, Red Card, Highlight)
- * Trigger automatically updates partidas score if event is 'GOL'!
+ * Automatically updates and syncs partidas score and automated suspensions!
  */
 export async function addMatchEvent(
   partida_id: number,
@@ -107,19 +198,68 @@ export async function addMatchEvent(
   jogador_id: number,
   tipo_evento: TipoEvento,
   minuto_jogo: number
-): Promise<void> {
+): Promise<{ gols_mandante: number; gols_visitante: number }> {
   await runQuery(
     `INSERT INTO eventos_partida (partida_id, time_id, jogador_id, tipo_evento, minuto_jogo)
      VALUES (?, ?, ?, ?, ?);`,
     [partida_id, time_id, jogador_id, tipo_evento, minuto_jogo]
   );
+
+  // If card event, sync suspensions immediately
+  if (tipo_evento === 'CARTAO_AMARELO' || tipo_evento === 'CARTAO_VERMELHO') {
+    const match = await query<{ categoria_id: number }>('SELECT categoria_id FROM partidas WHERE id = ?;', [partida_id]);
+    if (match[0]?.categoria_id) {
+      await syncCategorySuspensions(match[0].categoria_id);
+    }
+  }
+
+  return await updateMatchScoreFromEvents(partida_id);
 }
 
 /**
- * Delete / Undo a match event
+ * Delete / Undo a match event and recalculate match score
  */
-export async function deleteMatchEvent(evento_id: number): Promise<void> {
+export async function deleteMatchEvent(evento_id: number): Promise<{ gols_mandante: number; gols_visitante: number }> {
+  const ev = await query<{ partida_id: number; tipo_evento: string; jogador_id: number }>(
+    'SELECT partida_id, tipo_evento, jogador_id FROM eventos_partida WHERE id = ?;',
+    [evento_id]
+  );
+  const partida_id = ev[0]?.partida_id;
+  const tipo = ev[0]?.tipo_evento;
+  const jogador_id = ev[0]?.jogador_id;
+
   await runQuery('DELETE FROM eventos_partida WHERE id = ?;', [evento_id]);
+
+  if (partida_id) {
+    if (tipo === 'CARTAO_AMARELO' || tipo === 'CARTAO_VERMELHO') {
+      const match = await query<{ categoria_id: number }>('SELECT categoria_id FROM partidas WHERE id = ?;', [partida_id]);
+      if (match[0]?.categoria_id) {
+        // Clean up any double yellow suspension if player no longer has 2 yellow cards
+        if (tipo === 'CARTAO_AMARELO' && jogador_id) {
+          const remainingYellows = await query<{ count: number }>(
+            `SELECT COUNT(*) AS count FROM eventos_partida WHERE partida_id = ? AND jogador_id = ? AND tipo_evento = 'CARTAO_AMARELO';`,
+            [partida_id, jogador_id]
+          );
+          if ((remainingYellows[0]?.count || 0) < 2) {
+            await runQuery(
+              `DELETE FROM suspensoes WHERE jogador_id = ? AND partida_origem_id = ? AND motivo LIKE '%2º Cartão Amarelo%';`,
+              [jogador_id, partida_id]
+            );
+          }
+        } else if (tipo === 'CARTAO_VERMELHO' && jogador_id) {
+          await runQuery(
+            `DELETE FROM suspensoes WHERE jogador_id = ? AND partida_origem_id = ? AND motivo LIKE '%Vermelho%';`,
+            [jogador_id, partida_id]
+          );
+        }
+
+        await syncCategorySuspensions(match[0].categoria_id);
+      }
+    }
+
+    return await updateMatchScoreFromEvents(partida_id);
+  }
+  return { gols_mandante: 0, gols_visitante: 0 };
 }
 
 /**
@@ -145,76 +285,12 @@ export async function finalizeMatch(partida_id: number, tempo_decorrido_segundos
   const match = await getMatchDetails(partida_id);
   if (!match) return;
 
-  // 1. Fetch category settings
-  const configs = await query<{
-    amarelos_acumulados_suspensao: number;
-    jogos_suspensao_amarelo: number;
-    jogos_suspensao_vermelho: number;
-  }>(
-    `SELECT amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho 
-     FROM configuracoes_categoria 
-     WHERE categoria_id = ?;`,
-    [match.categoria_id]
-  );
-
-  const cfg = configs[0] || {
-    amarelos_acumulados_suspensao: 3,
-    jogos_suspensao_amarelo: 1,
-    jogos_suspensao_vermelho: 1,
-  };
-
   // Mark match status as FINALIZADO
   await runQuery(
     `UPDATE partidas SET status = 'FINALIZADO', tempo_decorrido_segundos = ? WHERE id = ?;`,
     [tempo_decorrido_segundos, partida_id]
   );
 
-  // 2. Process Red Cards given in this match
-  const redCardEvents = await query<{ jogador_id: number }>(
-    `SELECT DISTINCT jogador_id FROM eventos_partida 
-     WHERE partida_id = ? AND tipo_evento = 'CARTAO_VERMELHO';`,
-    [partida_id]
-  );
-
-  for (const r of redCardEvents) {
-    await runQuery(
-      `INSERT INTO suspensoes (jogador_id, partida_origem_id, jogos_cumprir, jogos_cumpridos, motivo)
-       VALUES (?, ?, ?, 0, 'Cartão Vermelho Direto');`,
-      [r.jogador_id, partida_id, cfg.jogos_suspensao_vermelho]
-    );
-  }
-
-  // 3. Process Yellow Cards accumulation across finished matches in category
-  const yellowCardPlayers = await query<{ jogador_id: number }>(
-    `SELECT DISTINCT jogador_id FROM eventos_partida 
-     WHERE partida_id = ? AND tipo_evento = 'CARTAO_AMARELO';`,
-    [partida_id]
-  );
-
-  for (const y of yellowCardPlayers) {
-    // Calculate total yellow cards in category for this player
-    const cardStats = await query<{ total_amarelos: number }>(
-      `SELECT COUNT(*) AS total_amarelos 
-       FROM eventos_partida ep
-       JOIN partidas p ON ep.partida_id = p.id
-       WHERE ep.jogador_id = ? AND ep.tipo_evento = 'CARTAO_AMARELO' AND p.categoria_id = ? AND p.status = 'FINALIZADO';`,
-      [y.jogador_id, match.categoria_id]
-    );
-
-    const totalAmarelos = cardStats[0]?.total_amarelos || 0;
-
-    // Check if threshold reached
-    if (totalAmarelos > 0 && totalAmarelos % cfg.amarelos_acumulados_suspensao === 0) {
-      await runQuery(
-        `INSERT INTO suspensoes (jogador_id, partida_origem_id, jogos_cumprir, jogos_cumpridos, motivo)
-         VALUES (?, ?, ?, 0, ?);`,
-        [
-          y.jogador_id,
-          partida_id,
-          cfg.jogos_suspensao_amarelo,
-          `Acúmulo de ${totalAmarelos} Cartões Amarelos`,
-        ]
-      );
-    }
-  }
+  // Sync and generate all automatic suspensions
+  await syncCategorySuspensions(match.categoria_id);
 }

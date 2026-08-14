@@ -27,7 +27,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   CheckCircle2,
-  Plus
+  Plus,
+  Tv
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { exportSqliteFile, importSqliteFile, resetDatabaseToSeed } from '../services/db';
@@ -108,8 +109,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navItems = [
     { id: 'publico', label: 'Portal do Torcedor', icon: Globe, badge: 'Público' },
+    { id: 'telao', label: 'Telão Ao Vivo (TV)', icon: Tv, badge: 'Ao Vivo' },
     { id: 'dashboard', label: 'Painel Geral', icon: BarChart3, badge: null },
-    { id: 'sumula', label: 'Súmula Digital', icon: PlayCircle, badge: 'Ao Vivo' },
+    { id: 'sumula', label: 'Súmula Digital', icon: PlayCircle, badge: 'Mesa' },
     { id: 'sorteio', label: 'Draft / Sorteio', icon: Shuffle, badge: null },
     { id: 'jogos', label: 'Jogos & Mata-Mata', icon: Calendar, badge: null },
     { id: 'classificacao', label: 'Tabela & Artilharia', icon: Trophy, badge: null },
@@ -119,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const handleSelectTab = (id: string) => {
-    if (id !== 'publico' && !isAdminAuthenticated) {
+    if (id !== 'publico' && id !== 'telao' && !isAdminAuthenticated) {
       setActiveTab('login');
       setMobileMenuOpen(false);
       return;

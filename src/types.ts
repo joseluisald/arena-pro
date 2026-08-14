@@ -157,6 +157,31 @@ export interface DestaqueItem {
   destaques: number;
 }
 
+export interface GoleiroMenosVazadoItem {
+  jogador_id?: number;
+  jogador_nome: string;
+  camisa_posicao: number;
+  time_id: number;
+  time_nome: string;
+  time_cor_hex: string;
+  time_brasao_path?: string;
+  jogos: number;
+  gols_sofridos: number;
+  media_gols: number;
+}
+
+export interface CartaoItem {
+  jogador_id: number;
+  jogador_nome: string;
+  camisa_posicao: number;
+  time_nome: string;
+  time_cor_hex: string;
+  time_brasao_path?: string;
+  cartoes_amarelos: number;
+  cartoes_vermelhos: number;
+  total_cartoes: number;
+}
+
 export const POSICOES_MAP: Record<number, { nome: string; sigla: string }> = {
   1: { nome: 'Goleiro', sigla: 'GOL' },
   2: { nome: 'Zagueiro', sigla: 'ZAG' },

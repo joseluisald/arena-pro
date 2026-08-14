@@ -8,6 +8,8 @@ import {
   Categoria, 
   ClassificacaoItem, 
   ArtilhariaItem, 
+  GoleiroMenosVazadoItem,
+  CartaoItem,
   Partida, 
   Time, 
   Jogador, 
@@ -15,7 +17,9 @@ import {
   POSICOES_MAP 
 } from '../types';
 import { query } from '../services/db';
+import { getCategoryArtilharia, getCategoryCartoes, getCategoryStandings, getGoleirosMenosVazados } from '../services/standingsService';
 import { TeamBadge } from './TeamBadge';
+import { realtimeService, RealtimeMessage } from '../services/realtime';
 import { 
   Trophy, 
   Flame, 
@@ -26,13 +30,16 @@ import {
   Sparkles, 
   ChevronRight, 
   Shield, 
+  ShieldAlert,
   Search,
   ChevronDown,
   Layers,
   ArrowRight,
   Clock,
   CheckCircle2,
-  Share2
+  Share2,
+  Tv,
+  ExternalLink
 } from 'lucide-react';
 
 interface PublicPortalViewProps {
@@ -46,11 +53,13 @@ export const PublicPortalView: React.FC<PublicPortalViewProps> = ({
   categorias,
   onSelectCategoria,
 }) => {
-  const [activeTab, setActiveTab] = useState<'tabela' | 'confrontos' | 'artilharia' | 'times' | 'ao-vivo'>('tabela');
+  const [activeTab, setActiveTab] = useState<'tabela' | 'confrontos' | 'artilharia' | 'goleiros' | 'cartoes' | 'times' | 'ao-vivo'>('tabela');
   
   // Data states
   const [standings, setStandings] = useState<ClassificacaoItem[]>([]);
   const [artilharia, setArtilharia] = useState<ArtilhariaItem[]>([]);
+  const [goleiros, setGoleiros] = useState<GoleiroMenosVazadoItem[]>([]);
+  const [cartoes, setCartoes] = useState<CartaoItem[]>([]);
   const [matches, setMatches] = useState<Partida[]>([]);
   const [teams, setTeams] = useState<Time[]>([]);
   const [players, setPlayers] = useState<Jogador[]>([]);
@@ -63,6 +72,22 @@ export const PublicPortalView: React.FC<PublicPortalViewProps> = ({
 
   useEffect(() => {
     loadPublicData();
+
+    // Subscribe to real-time events for instant spectator scoreboard updates
+    const unsubscribe = realtimeService.subscribe((msg: RealtimeMessage) => {
+      if (
+        msg.type === 'MATCH_EVENT' ||
+        msg.type === 'MATCH_EVENT_DELETED' ||
+        msg.type === 'MATCH_FINALIZED' ||
+        msg.type === 'MATCH_UPDATE'
+      ) {
+        loadPublicData();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [categoriaId]);
 
   const loadPublicData = async () => {
@@ -127,24 +152,21 @@ export const PublicPortalView: React.FC<PublicPortalViewProps> = ({
         setMatchEvents({});
       }
 
-      // 5. Calculate Standings
-      calculateStandings(teamList, matchData);
+      // 5. Calculate Standings using unified engine
+      const stdItems = await getCategoryStandings(categoriaId, { includeLive: true });
+      setStandings(stdItems);
 
-      // 6. Calculate Top Goalscorers
-      const topScorers = await query<ArtilhariaItem>(
-        `SELECT j.id as jogador_id, j.nome as jogador_nome, j.camisa_posicao, 
-                t.nome as time_nome, t.cor_hex as time_cor_hex, t.brasao_path as time_brasao_path, 
-                COUNT(ep.id) as gols
-         FROM eventos_partida ep
-         JOIN jogadores j ON ep.jogador_id = j.id
-         JOIN times t ON ep.time_id = t.id
-         WHERE ep.tipo_evento = 'GOL' AND j.categoria_id = ?
-         GROUP BY j.id
-         ORDER BY gols DESC, j.nome ASC
-         LIMIT 15;`,
-        [categoriaId]
-      );
+      // 6. Artilharia
+      const topScorers = await getCategoryArtilharia(categoriaId);
       setArtilharia(topScorers);
+
+      // 7. Goleiros Menos Vazados
+      const gks = await getGoleirosMenosVazados(categoriaId);
+      setGoleiros(gks);
+
+      // 8. Cartões & Disciplina
+      const cards = await getCategoryCartoes(categoriaId);
+      setCartoes(cards);
 
     } catch (err) {
       console.error('Erro ao carregar dados públicos:', err);
@@ -286,8 +308,21 @@ export const PublicPortalView: React.FC<PublicPortalViewProps> = ({
             </div>
           </div>
 
-          {/* Share & Category Quick Controls */}
+          {/* Share & Telão Quick Controls */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <button
+              onClick={() => {
+                const origin = window.location.origin;
+                window.open(`${origin}/?mode=telao`, '_blank');
+              }}
+              className="px-4 py-2.5 bg-[#FF6B1A] hover:bg-[#FF8533] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center space-x-2 shrink-0 shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+              title="Abrir Telão Digital em Tempo Real para TV ou segundo computador"
+            >
+              <Tv className="w-4 h-4" />
+              <span>Telão Ao Vivo</span>
+              <ExternalLink className="w-3 h-3 ml-0.5 opacity-80" />
+            </button>
+
             <button
               onClick={handleShare}
               className="px-4 py-2.5 bg-[#0F1115] hover:bg-[#222632] text-[#E0E6ED] border border-[#262933] hover:border-[#FF6B1A]/50 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 shrink-0 shadow-md"
@@ -401,6 +436,30 @@ export const PublicPortalView: React.FC<PublicPortalViewProps> = ({
         >
           <Flame className="w-4 h-4 text-[#FFC400]" />
           <span>Artilharia ({artilharia.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('goleiros')}
+          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
+            activeTab === 'goleiros'
+              ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.35)]'
+              : 'text-[#8E9299] hover:text-white hover:bg-[#0F1115]'
+          }`}
+        >
+          <Shield className="w-4 h-4 text-blue-300" />
+          <span>Goleiro Menos Vazado</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('cartoes')}
+          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0 ${
+            activeTab === 'cartoes'
+              ? 'bg-[#FFC400] text-black shadow-[0_0_15px_rgba(255,196,0,0.35)]'
+              : 'text-[#8E9299] hover:text-white hover:bg-[#0F1115]'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4" />
+          <span>Cartões & Disciplina</span>
         </button>
 
         <button
@@ -739,6 +798,142 @@ export const PublicPortalView: React.FC<PublicPortalViewProps> = ({
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: GOLEIRO MENOS VAZADO */}
+      {activeTab === 'goleiros' && (
+        <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 sm:p-6 space-y-6 shadow-2xl">
+          <div className="flex items-center justify-between pb-3 border-b border-[#262933]">
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center space-x-2">
+                <Shield className="w-4 h-4 text-blue-400" />
+                <span>Goleiro Menos Vazado / Defesa Menos Vazada - {activeCategoryName}</span>
+              </h3>
+              <p className="text-[11px] text-[#8E9299]">Classificação oficial por menor número de gols sofridos e melhor média defensiva.</p>
+            </div>
+          </div>
+
+          {goleiros.length === 0 ? (
+            <div className="p-10 text-center space-y-2">
+              <Shield className="w-10 h-10 text-[#8E9299] mx-auto opacity-50" />
+              <p className="text-xs font-bold text-white uppercase tracking-wider">Nenhum dado defensivo registrado ainda</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="bg-[#0F1115] text-[#8E9299] uppercase font-bold border-b border-[#262933] text-[10px] tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Pos</th>
+                    <th className="py-3 px-4 font-sans">Goleiro / Defesa</th>
+                    <th className="py-3 px-4 font-sans">Time</th>
+                    <th className="py-3 px-3 text-center">Jogos (J)</th>
+                    <th className="py-3 px-3 text-center text-blue-400 font-bold">Gols Sofridos (GC)</th>
+                    <th className="py-3 px-3 text-center text-white font-bold">Média / Jogo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#262933]">
+                  {goleiros.map((gk, idx) => (
+                    <tr key={gk.time_id} className="hover:bg-[#0F1115]/50 transition-colors">
+                      <td className="py-3 px-4 font-black text-[#8E9299]">
+                        <span className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                          idx === 0 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 font-black' :
+                          idx === 1 ? 'bg-slate-300/20 text-slate-300 border border-slate-300/30' :
+                          idx === 2 ? 'bg-amber-700/20 text-amber-500 border border-amber-700/30' : ''
+                        }`}>
+                          {idx + 1}º
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-white font-sans flex items-center space-x-2">
+                        <span className="w-6 h-6 bg-blue-900/30 text-blue-300 rounded-lg flex items-center justify-center text-xs font-mono border border-blue-700/30">
+                          🧤
+                        </span>
+                        <span>{gk.jogador_nome}</span>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-[#E0E6ED] font-sans">
+                        <div className="flex items-center space-x-2">
+                          <TeamBadge badge={gk.time_brasao_path} name={gk.time_nome} className="w-4 h-4" />
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: gk.time_cor_hex }}
+                          />
+                          <span className="truncate max-w-[150px] uppercase">{gk.time_nome}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-center font-bold text-[#E0E6ED]">{gk.jogos}</td>
+                      <td className="py-3 px-3 text-center font-black text-sm text-blue-400">
+                        {gk.gols_sofridos}
+                      </td>
+                      <td className="py-3 px-3 text-center font-bold text-white">
+                        {gk.media_gols.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: CARTÕES & DISCIPLINA */}
+      {activeTab === 'cartoes' && (
+        <div className="bg-[#161920] border border-[#262933] rounded-2xl p-5 sm:p-6 space-y-6 shadow-2xl">
+          <div className="flex items-center justify-between pb-3 border-b border-[#262933]">
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center space-x-2">
+                <ShieldAlert className="w-4 h-4 text-[#FFC400]" />
+                <span>Cartões & Disciplina - {activeCategoryName}</span>
+              </h3>
+              <p className="text-[11px] text-[#8E9299]">Controle de advertências (amarelos e vermelhos) do torneio.</p>
+            </div>
+          </div>
+
+          {cartoes.length === 0 ? (
+            <div className="p-10 text-center space-y-2">
+              <ShieldAlert className="w-10 h-10 text-[#8E9299] mx-auto opacity-50" />
+              <p className="text-xs font-bold text-white uppercase tracking-wider">Nenhum cartão registrado ainda</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {cartoes.map((c, idx) => (
+                <div
+                  key={c.jogador_id}
+                  className="bg-[#0F1115] p-4 rounded-2xl border border-[#262933] flex items-center justify-between shadow-lg"
+                >
+                  <div className="flex items-center space-x-3.5">
+                    <span className="w-7 h-7 bg-[#161920] text-[#8E9299] font-mono font-bold text-xs rounded-lg flex items-center justify-center border border-[#262933]">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <h4 className="font-extrabold text-white text-xs sm:text-sm uppercase tracking-wide">
+                        {c.jogador_nome}
+                      </h4>
+                      <div className="flex items-center space-x-1.5 text-[10px] text-[#8E9299] mt-0.5">
+                        <TeamBadge badge={c.time_brasao_path} name={c.time_nome} className="w-3.5 h-3.5" />
+                        <span className="truncate max-w-[120px]">{c.time_nome}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {c.cartoes_amarelos > 0 && (
+                      <span className="px-2.5 py-1 bg-[#FFC400]/20 border border-[#FFC400]/40 text-[#FFC400] font-mono font-black text-xs rounded-lg flex items-center space-x-1.5 shadow-sm">
+                        <span className="w-2.5 h-3.5 bg-[#FFC400] rounded-xs inline-block"></span>
+                        <span>{c.cartoes_amarelos}</span>
+                      </span>
+                    )}
+                    {c.cartoes_vermelhos > 0 && (
+                      <span className="px-2.5 py-1 bg-[#FF1744]/20 border border-[#FF1744]/40 text-[#FF1744] font-mono font-black text-xs rounded-lg flex items-center space-x-1.5 shadow-sm">
+                        <span className="w-2.5 h-3.5 bg-[#FF1744] rounded-xs inline-block"></span>
+                        <span>{c.cartoes_vermelhos}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

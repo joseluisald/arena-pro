@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArtilhariaItem, Categoria, ClassificacaoItem, ConfigCategoria, Partida, Time } from '../types';
 import { query } from '../services/db';
+import { getCategoryArtilharia, getCategoryStandings } from '../services/standingsService';
 import { TeamBadge } from './TeamBadge';
 import { Trophy, Users, DollarSign, Activity, Play, ChevronRight, AlertCircle, ShieldAlert } from 'lucide-react';
 
@@ -76,49 +77,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setMatches(mRes);
 
     // 5. Standings top 4
-    const stdRes = await query<ClassificacaoItem>(
-      `SELECT 
-         t.id AS time_id,
-         t.nome AS time_nome,
-         t.cor_hex AS time_cor_hex,
-         t.brasao_path AS time_brasao_path,
-         COUNT(CASE WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 THEN p.id END) AS jogos,
-         SUM(CASE 
-           WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 AND ((p.time_mandante_id = t.id AND p.gols_mandante > p.gols_visitante) OR (p.time_visitante_id = t.id AND p.gols_visitante > p.gols_mandante)) THEN 3
-           WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 AND p.gols_mandante = p.gols_visitante THEN 1
-           ELSE 0 END) AS pontos,
-         SUM(CASE WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 THEN CASE WHEN p.time_mandante_id = t.id THEN p.gols_mandante - p.gols_visitante ELSE p.gols_visitante - p.gols_mandante END END) AS saldo_gols,
-         SUM(CASE WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 THEN CASE WHEN p.time_mandante_id = t.id THEN p.gols_mandante ELSE p.gols_visitante END END) AS gols_pro
-       FROM times t
-       LEFT JOIN partidas p ON (p.time_mandante_id = t.id OR p.time_visitante_id = t.id)
-       WHERE t.categoria_id = ?
-       GROUP BY t.id, t.nome, t.cor_hex, t.brasao_path
-       ORDER BY pontos DESC, saldo_gols DESC, gols_pro DESC
-       LIMIT 4;`,
-      [categoriaId]
-    );
-    setStandings(stdRes);
+    const allStandings = await getCategoryStandings(categoriaId, { includeLive: true });
+    setStandings(allStandings.slice(0, 4));
 
     // 6. Top Goalscorers top 4
-    const artRes = await query<ArtilhariaItem>(
-      `SELECT 
-         j.id AS jogador_id,
-         j.nome AS jogador_nome,
-         j.camisa_posicao,
-         t.nome AS time_nome,
-         t.cor_hex AS time_cor_hex,
-         t.brasao_path AS time_brasao_path,
-         COUNT(ep.id) AS gols
-       FROM jogadores j
-       JOIN times t ON j.time_id = t.id
-       JOIN eventos_partida ep ON ep.jogador_id = j.id AND ep.tipo_evento = 'GOL'
-       JOIN partidas p ON ep.partida_id = p.id AND p.status = 'FINALIZADO'
-       WHERE j.categoria_id = ?
-       GROUP BY j.id, j.nome, j.camisa_posicao, t.nome, t.cor_hex, t.brasao_path
-       ORDER BY gols DESC, j.nome ASC
-       LIMIT 4;`,
-      [categoriaId]
-    );
+    const artRes = await getCategoryArtilharia(categoriaId, 4);
     setArtilharia(artRes);
   };
 

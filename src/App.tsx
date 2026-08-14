@@ -5,7 +5,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Categoria } from './types';
-import { query } from './services/db';
+import { query, runQuery } from './services/db';
+import { syncAllMatchesScores } from './services/matchService';
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { SumulaDigitalView } from './components/SumulaDigitalView';
@@ -16,6 +17,7 @@ import { TeamsPlayersView } from './components/TeamsPlayersView';
 import { SettingsView } from './components/SettingsView';
 import { SqlSchemaLabView } from './components/SqlSchemaLabView';
 import { PublicPortalView } from './components/PublicPortalView';
+import { LiveScoreboardView } from './components/LiveScoreboardView';
 import { LoginView } from './components/LoginView';
 import { Lock, Trophy } from 'lucide-react';
 
@@ -25,6 +27,7 @@ export default function App() {
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<number>(1);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
   const [isPublicStandaloneMode, setIsPublicStandaloneMode] = useState<boolean>(false);
+  const [isTelaoStandaloneMode, setIsTelaoStandaloneMode] = useState<boolean>(false);
   
   // Admin authentication state
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
@@ -32,14 +35,23 @@ export default function App() {
   });
 
   useEffect(() => {
-    // Check if URL specifies public mode (e.g. ?mode=public or ?view=public)
+    // Check if URL specifies public mode or telao mode
     const params = new URLSearchParams(window.location.search);
+    const isTelaoParam = 
+      params.get('mode') === 'telao' || 
+      params.get('view') === 'telao' || 
+      params.get('telao') === 'true' ||
+      window.location.hash.includes('telao');
+
     const isPublicParam = 
       params.get('mode') === 'public' || 
       params.get('view') === 'public' || 
       params.get('publico') === 'true';
 
-    if (isPublicParam) {
+    if (isTelaoParam) {
+      setIsTelaoStandaloneMode(true);
+      setActiveTab('telao');
+    } else if (isPublicParam) {
       setIsPublicStandaloneMode(true);
       setActiveTab('publico');
     } else if (localStorage.getItem('arena_romano_admin') === 'true') {
@@ -49,13 +61,30 @@ export default function App() {
     }
 
     loadCategorias();
+    syncAllMatchesScores();
   }, []);
 
   const loadCategorias = async () => {
-    const list = await query<Categoria>('SELECT * FROM categorias ORDER BY id ASC;');
-    setCategorias(list);
-    if (list.length > 0 && !selectedCategoriaId) {
-      setSelectedCategoriaId(list[0].id);
+    try {
+      let list = await query<Categoria>('SELECT * FROM categorias ORDER BY id ASC;');
+      if (list.length === 0) {
+        await runQuery("INSERT IGNORE INTO categorias (id, nome) VALUES (1, 'Livre'), (2, 'Master (35+)');");
+        await runQuery(`
+          INSERT IGNORE INTO configuracoes_categoria 
+          (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas) 
+          VALUES (1, 150.00, 20, 2, 3, 1, 1, 6, 4), (2, 150.00, 20, 2, 3, 1, 1, 6, 4);
+        `);
+        list = await query<Categoria>('SELECT * FROM categorias ORDER BY id ASC;');
+      }
+      setCategorias(list);
+      if (list.length > 0) {
+        const stillValid = list.some((c) => c.id === selectedCategoriaId);
+        if (!stillValid) {
+          setSelectedCategoriaId(list[0].id);
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao carregar categorias:', e);
     }
   };
 
@@ -102,6 +131,18 @@ export default function App() {
       }
     }
   };
+
+  // IF TELÃO STANDALONE MODE: Render only the scoreboard without admin sidebar
+  if (isTelaoStandaloneMode) {
+    return (
+      <LiveScoreboardView
+        isStandalone={true}
+        categoriaId={selectedCategoriaId}
+        categorias={categorias}
+        onSelectCategoria={setSelectedCategoriaId}
+      />
+    );
+  }
 
   // IF PUBLIC STANDALONE MODE: Render only the spectator page without admin sidebar or top header
   if (isPublicStandaloneMode) {
@@ -165,7 +206,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Unauthenticated Protection Fallback */}
-          {!isAdminAuthenticated && activeTab !== 'publico' ? (
+          {!isAdminAuthenticated && activeTab !== 'publico' && activeTab !== 'telao' ? (
             <LoginView
               onLoginSuccess={handleAdminLoginSuccess}
               onGoToPublic={() => togglePublicMode(true)}
@@ -185,6 +226,14 @@ export default function App() {
 
               {activeTab === 'publico' && (
                 <PublicPortalView
+                  categoriaId={selectedCategoriaId}
+                  categorias={categorias}
+                  onSelectCategoria={setSelectedCategoriaId}
+                />
+              )}
+
+              {activeTab === 'telao' && (
+                <LiveScoreboardView
                   categoriaId={selectedCategoriaId}
                   categorias={categorias}
                   onSelectCategoria={setSelectedCategoriaId}

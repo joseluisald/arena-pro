@@ -16,6 +16,7 @@ import {
   finalizeMatch,
 } from '../services/matchService';
 import { query } from '../services/db';
+import { realtimeService } from '../services/realtime';
 import {
   Play,
   Pause,
@@ -30,6 +31,11 @@ import {
   X,
   Sparkles,
   ShieldAlert,
+  Tv,
+  ExternalLink,
+  Share2,
+  Check,
+  Radio
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -74,6 +80,22 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
     }
   }, [selectedMatchId]);
 
+  // State for copying telão link
+  const [copiedTelaoLink, setCopiedTelaoLink] = useState(false);
+
+  const handleOpenTelaoNewTab = () => {
+    const origin = window.location.origin;
+    window.open(`${origin}/?mode=telao`, '_blank');
+  };
+
+  const handleCopyTelaoLink = () => {
+    const origin = window.location.origin;
+    navigator.clipboard.writeText(`${origin}/?mode=telao`).then(() => {
+      setCopiedTelaoLink(true);
+      setTimeout(() => setCopiedTelaoLink(false), 3000);
+    });
+  };
+
   // Timer interval effect
   useEffect(() => {
     if (isRunning) {
@@ -83,6 +105,10 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
           // Periodically save timer every 10 seconds
           if (next % 10 === 0 && selectedMatchId) {
             updateMatchTimer(selectedMatchId, next, 'EM_ANDAMENTO');
+          }
+          // Broadcast to real-time WebSocket every second
+          if (selectedMatchId) {
+            realtimeService.broadcastTimer(selectedMatchId, next, true, period, categoriaId);
           }
           return next;
         });
@@ -94,7 +120,7 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isRunning, selectedMatchId]);
+  }, [isRunning, selectedMatchId, period, categoriaId]);
 
   const loadCategoryMatches = async () => {
     const list = await query<Partida>(
@@ -150,6 +176,22 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
     const nextStatus = nextRunning ? 'EM_ANDAMENTO' : match.status === 'FINALIZADO' ? 'FINALIZADO' : 'AGENDADO';
     await updateMatchTimer(match.id, elapsedSeconds, nextStatus);
     setMatch((prev) => (prev ? { ...prev, status: nextStatus } : null));
+
+    // Broadcast match status update to all connected screens (Telão / Torcedor)
+    realtimeService.send('MATCH_UPDATE', {
+      matchId: match.id,
+      categoriaId: match.categoria_id,
+      categoriaNome: match.categoria_nome,
+      status: nextStatus,
+      isRunning: nextRunning,
+      elapsedSeconds,
+      period,
+      timeMandanteNome: match.time_mandante_nome,
+      timeVisitanteNome: match.time_visitante_nome
+    });
+
+    // Broadcast timer toggle immediately
+    realtimeService.broadcastTimer(match.id, elapsedSeconds, nextRunning, period, match.categoria_id || categoriaId);
   };
 
   const handleResetTimer = async () => {
@@ -157,10 +199,17 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
     setIsRunning(false);
     setElapsedSeconds(0);
     await updateMatchTimer(match.id, 0, match.status);
+    realtimeService.broadcastTimer(match.id, 0, false, period, categoriaId);
   };
 
   const handleAddExtraMinutes = (mins: number) => {
-    setElapsedSeconds((prev) => Math.max(0, prev + mins * 60));
+    setElapsedSeconds((prev) => {
+      const next = Math.max(0, prev + mins * 60);
+      if (match) {
+        realtimeService.broadcastTimer(match.id, next, isRunning, period, categoriaId);
+      }
+      return next;
+    });
   };
 
   const handleRegisterEvent = async (type: TipoEvento) => {
@@ -169,8 +218,22 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
     const currentMinute = Math.max(1, Math.floor(elapsedSeconds / 60));
     await addMatchEvent(match.id, selectedPlayer.teamId, selectedPlayer.player.id, type, currentMinute);
 
-    // Refresh match details & rosters
-    loadMatchData(match.id);
+    // Refresh match details, rosters & match list
+    await loadMatchData(match.id);
+    await loadCategoryMatches();
+
+    // Broadcast new event to real-time viewers
+    const updatedDetails = await getMatchDetails(match.id);
+    realtimeService.broadcastEvent(match.id, {
+      tipo_evento: type,
+      jogador_nome: selectedPlayer.player.nome,
+      time_nome: selectedPlayer.teamId === match.time_mandante_id ? match.time_mandante_nome : match.time_visitante_nome,
+      minuto_jogo: currentMinute
+    }, {
+      scoreMandante: updatedDetails?.gols_mandante || 0,
+      scoreVisitante: updatedDetails?.gols_visitante || 0
+    });
+
     setSelectedPlayer(null);
 
     // Confetti effect on goal
@@ -186,7 +249,16 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
   const handleDeleteEvent = async (eventId: number) => {
     if (!match) return;
     await deleteMatchEvent(eventId);
-    loadMatchData(match.id);
+    await loadMatchData(match.id);
+    await loadCategoryMatches();
+
+    const updatedDetails = await getMatchDetails(match.id);
+    realtimeService.send('MATCH_EVENT_DELETED', {
+      matchId: match.id,
+      eventId,
+      scoreMandante: updatedDetails?.gols_mandante || 0,
+      scoreVisitante: updatedDetails?.gols_visitante || 0,
+    });
   };
 
   // Finalize Match modal & status states
@@ -206,6 +278,12 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
       setIsRunning(false);
       await finalizeMatch(match.id, elapsedSeconds);
       await loadMatchData(match.id);
+
+      realtimeService.broadcastMatchFinalized(match.id, {
+        mandante: match.gols_mandante,
+        visitante: match.gols_visitante
+      });
+
       onMatchFinalized();
       setIsFinalizeModalOpen(false);
       setFinalizeSuccessMessage('Partida finalizada com sucesso! A classificação da categoria, artilharia e suspensões por cartão foram reprocessadas e salvas.');
@@ -280,6 +358,12 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
         </div>
 
         <div className="flex flex-row flex-wrap items-center gap-2">
+          {/* Realtime Live Indicator */}
+          <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-[10px] font-mono font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>AO VIVO WEBSOCKET</span>
+          </div>
+
           {/* Match Switcher Dropdown */}
           <div className="flex items-center space-x-2 bg-[#0F1115] p-1.5 rounded-xl border border-[#262933] shrink-0">
             <span className="text-[10px] text-[#8E9299] font-mono uppercase tracking-wider pl-2">Partida:</span>
@@ -296,8 +380,26 @@ export const SumulaDigitalView: React.FC<SumulaDigitalViewProps> = ({
             </select>
           </div>
 
-          {/* Action Buttons */}
-          {match && null}
+          {/* Open Telão in new tab */}
+          <button
+            onClick={handleOpenTelaoNewTab}
+            className="px-3 py-2 bg-[#FF6B1A] hover:bg-[#FF8533] text-black font-extrabold rounded-xl text-xs flex items-center space-x-1.5 shadow-[0_0_15px_rgba(255,107,26,0.25)] transition-all"
+            title="Abrir Telão ao Vivo em Nova Aba para projetar no 2º monitor, TV ou telão LED"
+          >
+            <Tv className="w-3.5 h-3.5" />
+            <span>Abrir Telão (TV / 2º PC)</span>
+            <ExternalLink className="w-3 h-3 ml-0.5 opacity-80" />
+          </button>
+
+          {/* Copy Telão Link for other PC */}
+          <button
+            onClick={handleCopyTelaoLink}
+            className="px-3 py-2 bg-[#0F1115] hover:bg-[#1C202A] text-white border border-[#262933] hover:border-[#FF6B1A]/40 rounded-xl text-xs font-mono font-bold flex items-center space-x-1.5 transition-all"
+            title="Copiar link do Telão para abrir em outro computador ou celular"
+          >
+            {copiedTelaoLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-[#FF6B1A]" />}
+            <span>{copiedTelaoLink ? 'Link Copiado!' : 'Copiar Link Telão'}</span>
+          </button>
         </div>
       </div>
 

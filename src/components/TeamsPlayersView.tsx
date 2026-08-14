@@ -6,8 +6,10 @@
 import React, { useEffect, useState } from 'react';
 import { Jogador, POSICOES_MAP, Time } from '../types';
 import { query, runQuery } from '../services/db';
-import { Users, Plus, Shield, CheckCircle, Clock, Trash2, Edit, DollarSign, Filter } from 'lucide-react';
+import { Users, Plus, Shield, CheckCircle, Clock, Trash2, Edit, DollarSign, Filter, Globe, Palette, Sparkles } from 'lucide-react';
 import { TeamBadge } from './TeamBadge';
+import { FlagPickerModal } from './FlagPickerModal';
+import { COUNTRIES, CountryInfo } from '../data/countries';
 
 interface TeamsPlayersViewProps {
   categoriaId: number;
@@ -18,11 +20,14 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   const [teams, setTeams] = useState<Time[]>([]);
   const [players, setPlayers] = useState<Jogador[]>([]);
 
+  // Flag Picker Modal State
+  const [flagPickerTarget, setFlagPickerTarget] = useState<'new' | 'edit' | null>(null);
+
   // Modal / Form States
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
-  const [newTeamColor, setNewTeamColor] = useState('#2563EB');
-  const [newTeamBadge, setNewTeamBadge] = useState('🛡️');
+  const [newTeamColor, setNewTeamColor] = useState('#009B3A');
+  const [newTeamBadge, setNewTeamBadge] = useState('https://flagcdn.com/w160/br.png');
 
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -32,8 +37,8 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   // Edit Team & Edit Player States
   const [editingTeam, setEditingTeam] = useState<Time | null>(null);
   const [editTeamName, setEditTeamName] = useState('');
-  const [editTeamColor, setEditTeamColor] = useState('#2563EB');
-  const [editTeamBadge, setEditTeamBadge] = useState('🛡️');
+  const [editTeamColor, setEditTeamColor] = useState('#009B3A');
+  const [editTeamBadge, setEditTeamBadge] = useState('https://flagcdn.com/w160/br.png');
 
   const [editingPlayer, setEditingPlayer] = useState<Jogador | null>(null);
   const [editPlayerName, setEditPlayerName] = useState('');
@@ -41,11 +46,29 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
   const [editPlayerTeamId, setEditPlayerTeamId] = useState<number | null>(null);
   const [editPlayerPaid, setEditPlayerPaid] = useState(0);
 
+  const quickCountries = COUNTRIES.slice(0, 12);
+
+  const handleSelectCountry = (country: CountryInfo, target: 'new' | 'edit') => {
+    if (target === 'new') {
+      setNewTeamBadge(country.flagUrl);
+      setNewTeamColor(country.primaryColor);
+      if (!newTeamName.trim()) {
+        setNewTeamName(country.name);
+      }
+    } else {
+      setEditTeamBadge(country.flagUrl);
+      setEditTeamColor(country.primaryColor);
+      if (!editTeamName.trim()) {
+        setEditTeamName(country.name);
+      }
+    }
+  };
+
   const handleOpenEditTeam = (team: Time) => {
     setEditingTeam(team);
     setEditTeamName(team.nome);
-    setEditTeamColor(team.cor_hex || '#2563EB');
-    setEditTeamBadge(team.brasao_path || '🛡️');
+    setEditTeamColor(team.cor_hex || '#009B3A');
+    setEditTeamBadge(team.brasao_path || 'https://flagcdn.com/w160/br.png');
   };
 
   const handleSaveEditTeam = async (e: React.FormEvent) => {
@@ -115,15 +138,37 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
     e.preventDefault();
     if (!newTeamName.trim()) return;
 
-    await runQuery(
-      `INSERT INTO times (nome, brasao_path, cor_hex, categoria_id)
-       VALUES (?, ?, ?, ?);`,
-      [newTeamName.trim(), newTeamBadge, newTeamColor, categoriaId]
-    );
+    try {
+      // Validate category existence to strictly satisfy Foreign Key constraint
+      let targetCatId = categoriaId;
+      const catCheck = await query<{ id: number }>('SELECT id FROM categorias WHERE id = ?;', [targetCatId]);
+      if (catCheck.length === 0) {
+        const availableCats = await query<{ id: number }>('SELECT id FROM categorias ORDER BY id ASC LIMIT 1;');
+        if (availableCats.length > 0) {
+          targetCatId = availableCats[0].id;
+        } else {
+          await runQuery("INSERT IGNORE INTO categorias (id, nome) VALUES (1, 'Livre');");
+          await runQuery(`
+            INSERT IGNORE INTO configuracoes_categoria 
+            (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas) 
+            VALUES (1, 150.00, 20, 2, 3, 1, 1, 6, 4);
+          `);
+          targetCatId = 1;
+        }
+      }
 
-    setNewTeamName('');
-    setShowTeamModal(false);
-    loadData();
+      await runQuery(
+        `INSERT INTO times (nome, brasao_path, cor_hex, categoria_id)
+         VALUES (?, ?, ?, ?);`,
+        [newTeamName.trim(), newTeamBadge, newTeamColor, targetCatId]
+      );
+
+      setNewTeamName('');
+      setShowTeamModal(false);
+      loadData();
+    } catch (err: any) {
+      console.error('Erro ao cadastrar time:', err);
+    }
   };
 
   const handleDeleteTeam = async (teamId: number) => {
@@ -143,15 +188,36 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
     e.preventDefault();
     if (!newPlayerName.trim()) return;
 
-    await runQuery(
-      `INSERT INTO jogadores (nome, camisa_posicao, pago, categoria_id)
-       VALUES (?, ?, ?, ?);`,
-      [newPlayerName.trim(), newPlayerCamisa, newPlayerPaid, categoriaId]
-    );
+    try {
+      let targetCatId = categoriaId;
+      const catCheck = await query<{ id: number }>('SELECT id FROM categorias WHERE id = ?;', [targetCatId]);
+      if (catCheck.length === 0) {
+        const availableCats = await query<{ id: number }>('SELECT id FROM categorias ORDER BY id ASC LIMIT 1;');
+        if (availableCats.length > 0) {
+          targetCatId = availableCats[0].id;
+        } else {
+          await runQuery("INSERT IGNORE INTO categorias (id, nome) VALUES (1, 'Livre');");
+          await runQuery(`
+            INSERT IGNORE INTO configuracoes_categoria 
+            (categoria_id, valor_inscricao, tempo_jogo_minutos, amarelos_para_expulsao, amarelos_acumulados_suspensao, jogos_suspensao_amarelo, jogos_suspensao_vermelho, num_titulares, num_reservas) 
+            VALUES (1, 150.00, 20, 2, 3, 1, 1, 6, 4);
+          `);
+          targetCatId = 1;
+        }
+      }
 
-    setNewPlayerName('');
-    setShowPlayerModal(false);
-    loadData();
+      await runQuery(
+        `INSERT INTO jogadores (nome, camisa_posicao, pago, categoria_id)
+         VALUES (?, ?, ?, ?);`,
+        [newPlayerName.trim(), newPlayerCamisa, newPlayerPaid, targetCatId]
+      );
+
+      setNewPlayerName('');
+      setShowPlayerModal(false);
+      loadData();
+    } catch (err: any) {
+      console.error('Erro ao cadastrar jogador:', err);
+    }
   };
 
   const handleTogglePayment = async (playerId: number, currentPaid: number) => {
@@ -343,54 +409,123 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
 
       {/* Modal Novo Time */}
       {showTeamModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-            <h3 className="text-base font-black text-white uppercase tracking-tight">Cadastrar Novo Time</h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#262933] pb-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-[#FF6B1A]/10 border border-[#FF6B1A]/30 flex items-center justify-center text-[#FF6B1A]">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">Cadastrar Novo Time</h3>
+                  <p className="text-[10px] text-[#8E9299] font-mono">Use bandeiras de países como brasão e a cor é definida automaticamente</p>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleCreateTeam} className="space-y-4 text-xs">
+              {/* 1. NOME DO TIME */}
               <div>
-                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Nome do Time</label>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">1. Nome do Time</label>
                 <input
                   type="text"
                   required
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  placeholder="Ex: Real Matismo FC"
+                  placeholder="Ex: Brasil, Argentina, Real Society..."
                   className="w-full bg-[#0F1115] text-white rounded-xl p-3 border border-[#262933] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                 />
               </div>
 
-              <div>
-                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Cor Principal (Hex)</label>
-                <input
-                  type="color"
-                  value={newTeamColor}
-                  onChange={(e) => setNewTeamColor(e.target.value)}
-                  className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
-                />
-              </div>
+              {/* 2. BRASÃO / BANDEIRA DO PAÍS (PRIMEIRO) */}
+              <div className="bg-[#0F1115] p-3.5 rounded-xl border border-[#262933] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[#8E9299] font-mono uppercase tracking-wider flex items-center space-x-1.5 font-bold">
+                    <Globe className="w-3.5 h-3.5 text-[#FF6B1A]" />
+                    <span>2. Brasão / Bandeira do País</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setFlagPickerTarget('new')}
+                    className="px-2.5 py-1 bg-[#FF6B1A]/10 hover:bg-[#FF6B1A]/20 text-[#FF6B1A] border border-[#FF6B1A]/30 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center space-x-1"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>Ver Todas as Bandeiras</span>
+                  </button>
+                </div>
 
-              <div>
-                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">
-                  Brasão (Emoji ou URL de Imagem)
-                </label>
-                <div className="flex items-center space-x-2">
+                {/* Bandeiras de Acesso Rápido */}
+                <div className="space-y-1">
+                  <span className="text-[10px] text-[#8E9299] font-mono block">Seleções Populares (Clique para selecionar bandeira e cor):</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {quickCountries.map((c) => {
+                      const isSel = newTeamBadge === c.flagUrl;
+                      return (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => handleSelectCountry(c, 'new')}
+                          title={`${c.name} - Cor: ${c.primaryColor}`}
+                          className={`px-2 py-1 rounded-lg border flex items-center space-x-1.5 transition-all text-[11px] ${
+                            isSel
+                              ? 'bg-[#FF6B1A]/20 border-[#FF6B1A] text-white font-bold ring-1 ring-[#FF6B1A]'
+                              : 'bg-[#161920] hover:bg-[#222632] border-[#262933] text-[#8E9299] hover:text-white'
+                          }`}
+                        >
+                          <img src={c.flagUrl} alt={c.name} className="w-4 h-3 object-cover rounded-xs" />
+                          <span>{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Campo manual / Preview */}
+                <div className="flex items-center space-x-2 pt-1 border-t border-[#1C202A]">
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center border border-[#262933] shrink-0 overflow-hidden text-lg"
+                    className="w-12 h-10 rounded-xl flex items-center justify-center border border-[#262933] shrink-0 overflow-hidden text-lg shadow-sm"
                     style={{ backgroundColor: newTeamColor }}
                   >
-                    <TeamBadge badge={newTeamBadge} name={newTeamName} className="w-10 h-10" />
+                    <TeamBadge badge={newTeamBadge} name={newTeamName} className="w-10 h-8" />
                   </div>
                   <input
                     type="text"
                     value={newTeamBadge}
                     onChange={(e) => setNewTeamBadge(e.target.value)}
-                    placeholder="🛡️ ou https://..."
-                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] font-mono text-xs focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
+                    placeholder="URL da bandeira ou emoji"
+                    className="w-full bg-[#161920] text-white rounded-xl p-2.5 border border-[#262933] font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2">
+              {/* 3. COR PRINCIPAL (DEPOIS DO BRASÃO) */}
+              <div className="bg-[#0F1115] p-3.5 rounded-xl border border-[#262933] space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[#8E9299] font-mono uppercase tracking-wider flex items-center space-x-1.5 font-bold">
+                    <Palette className="w-3.5 h-3.5 text-[#FF6B1A]" />
+                    <span>3. Cor Principal do Time</span>
+                  </label>
+                  <span className="text-[10px] text-[#8E9299] font-mono flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: newTeamColor }} />
+                    <span className="font-bold uppercase text-white">{newTeamColor}</span>
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="color"
+                    value={newTeamColor}
+                    onChange={(e) => setNewTeamColor(e.target.value)}
+                    className="w-14 h-10 bg-[#161920] rounded-xl p-1 border border-[#262933] cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <p className="text-[11px] text-[#8E9299] font-mono leading-tight">
+                      A cor é definida automaticamente ao selecionar a bandeira do país, mas você pode ajustar pelo seletor ao lado.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-[#262933]">
                 <button
                   type="button"
                   onClick={() => setShowTeamModal(false)}
@@ -400,7 +535,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                  className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all"
                 >
                   Salvar Time
                 </button>
@@ -477,12 +612,24 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
 
       {/* Modal Editar Time */}
       {editingTeam && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-            <h3 className="text-base font-black text-white uppercase tracking-tight">Editar Time</h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#161920] border border-[#262933] rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#262933] pb-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-[#FF6B1A]/10 border border-[#FF6B1A]/30 flex items-center justify-center text-[#FF6B1A]">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">Editar Time</h3>
+                  <p className="text-[10px] text-[#8E9299] font-mono">Altere nome, bandeira ou a cor oficial do time</p>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleSaveEditTeam} className="space-y-4 text-xs">
+              {/* 1. NOME DO TIME */}
               <div>
-                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Nome do Time</label>
+                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">1. Nome do Time</label>
                 <input
                   type="text"
                   required
@@ -492,38 +639,95 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 />
               </div>
 
-              <div>
-                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">Cor Principal</label>
-                <input
-                  type="color"
-                  value={editTeamColor}
-                  onChange={(e) => setEditTeamColor(e.target.value)}
-                  className="w-full h-10 bg-[#0F1115] rounded-xl p-1 border border-[#262933] cursor-pointer"
-                />
-              </div>
+              {/* 2. BRASÃO / BANDEIRA DO PAÍS (PRIMEIRO) */}
+              <div className="bg-[#0F1115] p-3.5 rounded-xl border border-[#262933] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[#8E9299] font-mono uppercase tracking-wider flex items-center space-x-1.5 font-bold">
+                    <Globe className="w-3.5 h-3.5 text-[#FF6B1A]" />
+                    <span>2. Brasão / Bandeira do País</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setFlagPickerTarget('edit')}
+                    className="px-2.5 py-1 bg-[#FF6B1A]/10 hover:bg-[#FF6B1A]/20 text-[#FF6B1A] border border-[#FF6B1A]/30 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center space-x-1"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>Ver Todas as Bandeiras</span>
+                  </button>
+                </div>
 
-              <div>
-                <label className="block text-[#8E9299] font-mono uppercase tracking-wider mb-1">
-                  Brasão (Emoji ou URL de Imagem)
-                </label>
-                <div className="flex items-center space-x-2">
+                {/* Bandeiras de Acesso Rápido */}
+                <div className="space-y-1">
+                  <span className="text-[10px] text-[#8E9299] font-mono block">Seleções Populares:</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {quickCountries.map((c) => {
+                      const isSel = editTeamBadge === c.flagUrl;
+                      return (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => handleSelectCountry(c, 'edit')}
+                          title={`${c.name} - Cor: ${c.primaryColor}`}
+                          className={`px-2 py-1 rounded-lg border flex items-center space-x-1.5 transition-all text-[11px] ${
+                            isSel
+                              ? 'bg-[#FF6B1A]/20 border-[#FF6B1A] text-white font-bold ring-1 ring-[#FF6B1A]'
+                              : 'bg-[#161920] hover:bg-[#222632] border-[#262933] text-[#8E9299] hover:text-white'
+                          }`}
+                        >
+                          <img src={c.flagUrl} alt={c.name} className="w-4 h-3 object-cover rounded-xs" />
+                          <span>{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Campo manual / Preview */}
+                <div className="flex items-center space-x-2 pt-1 border-t border-[#1C202A]">
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center border border-[#262933] shrink-0 overflow-hidden text-lg"
+                    className="w-12 h-10 rounded-xl flex items-center justify-center border border-[#262933] shrink-0 overflow-hidden text-lg shadow-sm"
                     style={{ backgroundColor: editTeamColor }}
                   >
-                    <TeamBadge badge={editTeamBadge} name={editTeamName} className="w-10 h-10" />
+                    <TeamBadge badge={editTeamBadge} name={editTeamName} className="w-10 h-8" />
                   </div>
                   <input
                     type="text"
                     value={editTeamBadge}
                     onChange={(e) => setEditTeamBadge(e.target.value)}
-                    placeholder="🛡️ ou https://..."
-                    className="w-full bg-[#0F1115] text-white rounded-xl p-2.5 border border-[#262933] font-mono text-xs focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
+                    placeholder="URL da bandeira ou emoji"
+                    className="w-full bg-[#161920] text-white rounded-xl p-2.5 border border-[#262933] font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-[#FF6B1A]"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2">
+              {/* 3. COR PRINCIPAL (DEPOIS DO BRASÃO) */}
+              <div className="bg-[#0F1115] p-3.5 rounded-xl border border-[#262933] space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[#8E9299] font-mono uppercase tracking-wider flex items-center space-x-1.5 font-bold">
+                    <Palette className="w-3.5 h-3.5 text-[#FF6B1A]" />
+                    <span>3. Cor Principal do Time</span>
+                  </label>
+                  <span className="text-[10px] text-[#8E9299] font-mono flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: editTeamColor }} />
+                    <span className="font-bold uppercase text-white">{editTeamColor}</span>
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="color"
+                    value={editTeamColor}
+                    onChange={(e) => setEditTeamColor(e.target.value)}
+                    className="w-14 h-10 bg-[#161920] rounded-xl p-1 border border-[#262933] cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <p className="text-[11px] text-[#8E9299] font-mono leading-tight">
+                      A cor é atualizada automaticamente ao escolher a bandeira, ou você pode ajustá-la manualmente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-[#262933]">
                 <button
                   type="button"
                   onClick={() => setEditingTeam(null)}
@@ -533,7 +737,7 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)]"
+                  className="px-5 py-2.5 bg-[#FF6B1A] hover:bg-[#e05a0f] text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(255,107,26,0.3)] transition-all"
                 >
                   Salvar Alterações
                 </button>
@@ -622,6 +826,19 @@ export const TeamsPlayersView: React.FC<TeamsPlayersViewProps> = ({ categoriaId 
           </div>
         </div>
       )}
+
+      {/* Flag Picker Modal (Biblioteca de Bandeiras dos Países) */}
+      <FlagPickerModal
+        isOpen={flagPickerTarget !== null}
+        onClose={() => setFlagPickerTarget(null)}
+        onSelectCountry={(country) => {
+          if (flagPickerTarget) {
+            handleSelectCountry(country, flagPickerTarget);
+          }
+          setFlagPickerTarget(null);
+        }}
+        selectedFlagUrl={flagPickerTarget === 'new' ? newTeamBadge : editTeamBadge}
+      />
     </div>
   );
 };

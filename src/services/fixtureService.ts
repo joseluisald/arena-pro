@@ -5,6 +5,7 @@
 
 import { query, runQuery } from './db';
 import { ClassificacaoItem, Partida, Time } from '../types';
+import { getCategoryStandings } from './standingsService';
 
 export interface FixtureSummary {
   categoria_id: number;
@@ -185,25 +186,8 @@ export async function generateGroupStageFixtures(
  * Generate Playoff Bracket (Quartas, Semifinal, Final) based on current Group Standings
  */
 export async function generatePlayoffs(categoria_id: number): Promise<void> {
-  // Get current standings for Group Stage
-  const standings = await query<ClassificacaoItem>(
-    `SELECT 
-       t.id AS time_id,
-       t.nome AS time_nome,
-       COALESCE(COUNT(CASE WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 THEN p.id END), 0) AS jogos,
-       COALESCE(SUM(CASE 
-         WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 AND ((p.time_mandante_id = t.id AND p.gols_mandante > p.gols_visitante) OR (p.time_visitante_id = t.id AND p.gols_visitante > p.gols_mandante)) THEN 3
-         WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 AND p.gols_mandante = p.gols_visitante THEN 1
-         ELSE 0 END), 0) AS pontos,
-       COALESCE(SUM(CASE WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 THEN CASE WHEN p.time_mandante_id = t.id THEN p.gols_mandante - p.gols_visitante ELSE p.gols_visitante - p.gols_mandante END END), 0) AS saldo_gols,
-       COALESCE(SUM(CASE WHEN p.status = 'FINALIZADO' AND p.fase_id = 1 THEN CASE WHEN p.time_mandante_id = t.id THEN p.gols_mandante ELSE p.gols_visitante END END), 0) AS gols_pro
-     FROM times t
-     LEFT JOIN partidas p ON (p.time_mandante_id = t.id OR p.time_visitante_id = t.id)
-     WHERE t.categoria_id = ?
-     GROUP BY t.id, t.nome
-     ORDER BY pontos DESC, saldo_gols DESC, gols_pro DESC, t.nome ASC;`,
-    [categoria_id]
-  );
+  // Get current standings for Group Stage using unified engine
+  const standings = await getCategoryStandings(categoria_id);
 
   if (standings.length < 2) {
     throw new Error('É necessário ter no mínimo 2 times cadastrados na categoria para gerar a fase de mata-mata.');
